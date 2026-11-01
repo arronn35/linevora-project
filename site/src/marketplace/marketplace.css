@@ -1,0 +1,37 @@
+/* Pazar yeri — panel kurumsal sistemi içinde: border disiplini, 4/8 aralığı, sans. */
+.mp-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;margin-bottom:14px}
+.mp-filters label,.mp-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500}
+.mp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.mp-card{background:var(--white,#fff);border:1.5px solid var(--rule);padding:14px;display:flex;flex-direction:column;gap:6px}
+.mp-card:hover{border-color:var(--ink)}
+.mp-card-title{margin:4px 0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.mp-warn{color:var(--warn);font-size:13px}
+.mp-error{color:var(--danger-ink,#7f1d1d);border:1px solid var(--bad);background:var(--danger-bg,#fdecea);padding:10px 12px}
+.mp-kind-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:700px){.mp-kind-cards{grid-template-columns:1fr}}
+.mp-kind-card{text-align:left;background:var(--white,#fff);border:1.5px solid var(--rule);padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;font:inherit;min-height:56px}
+.mp-kind-card:hover{border-color:var(--ink)}
+.mp-kind-card.on{border-color:var(--ink);box-shadow:4px 4px 0 var(--signal)}
+.mp-kind-card:focus-visible,.mp-card button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.mp-big{width:100%;min-height:120px;font-size:16px!important;line-height:1.6}
+.mp-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+.mp-form input{min-height:44px}
+.mp-missing{border:1.5px solid var(--rule);padding:12px;margin:12px 0}
+.mp-missing-row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--rule)}
+.mp-tablewrap{overflow-x:auto;border:1px solid var(--rule);background:var(--white,#fff)}
+.mp-tablewrap table{min-width:720px}
+.mp-notes{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
+.mp-notes li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--rule);background:var(--white,#fff);padding:10px}
+.mp-notes li.unread{border-left:4px solid var(--signal)}
+.mp-thread{margin-top:16px;border-top:1.5px solid var(--ink);padding-top:12px}
+.mp-msg{background:var(--white,#fff);border:1px solid var(--rule);padding:8px 10px}
+.mp-offer-row{border:1px solid var(--rule);background:var(--white,#fff);padding:12px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.mp-offer-row textarea{width:100%}
+.mp-kpi-btn{font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column}
+.mp-kpi-btn:hover{border-color:var(--ink)}
+.mp-kpi-btn:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+.mp-todo,.mp-activity{list-style:none;padding:0;display:flex;flex-direction:column;gap:8px}
+.mp-todo li,.mp-activity li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--rule);background:var(--white,#fff);padding:10px;align-items:center}
+.mp-timeline{margin:10px 0 0 18px;display:grid;gap:6px}
+.mp-timeline li.done{font-weight:600}
+@media (prefers-reduced-motion: reduce){.mp-card,.mp-kind-card{transition:none}}

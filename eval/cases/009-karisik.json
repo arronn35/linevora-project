@@ -1,0 +1,33 @@
+{
+  "id": "009-karisik",
+  "input_text": "2 adet DN25 küresel vana ve 10 metre DN25 bakır boru isteniyor.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "küresel vana",
+        "features": {
+          "DN": "25"
+        },
+        "quantity": 2,
+        "unit": "adet",
+        "source": {
+          "page": 1,
+          "quote": "2 adet DN25 küresel vana"
+        }
+      },
+      {
+        "product_type": "bakır boru",
+        "features": {
+          "DN": "25"
+        },
+        "quantity": 10,
+        "unit": "metre",
+        "source": {
+          "page": 1,
+          "quote": "10 metre DN25 bakır boru"
+        }
+      }
+    ]
+  },
+  "notes": "Adım 9 genişletilmiş eval seti (temsilî tarihsel talep)."
+}

@@ -1,0 +1,13 @@
+services:
+  linevora:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      LINEVORA_SECRET_KEY: "${LINEVORA_SECRET_KEY:?gerekli}"
+      # Parolalar pbkdf2_sha256$... karması olmalı (prod kuralı)
+      LINEVORA_USERS: "${LINEVORA_USERS:?gerekli}"
+    volumes:
+      - linevora-data:/data
+volumes:
+  linevora-data:

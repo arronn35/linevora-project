@@ -1,0 +1,21 @@
+{
+  "id": "007-fan",
+  "input_text": "5 adet aksiyal fan, debi en az 10000 m3/h.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "aksiyal fan",
+        "features": {
+          "min_debi_m3h": 10000
+        },
+        "quantity": 5,
+        "unit": "adet",
+        "source": {
+          "page": 1,
+          "quote": "5 adet aksiyal fan"
+        }
+      }
+    ]
+  },
+  "notes": "Adım 9 genişletilmiş eval seti (temsilî tarihsel talep)."
+}

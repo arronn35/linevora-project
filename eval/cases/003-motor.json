@@ -1,0 +1,22 @@
+{
+  "id": "003-motor",
+  "input_text": "3 adet 15 kW elektrik motoru, 1500 devir/dakika.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "elektrik motoru",
+        "features": {
+          "guc_kw": 15,
+          "devir_dakika": 1500
+        },
+        "quantity": 3,
+        "unit": "adet",
+        "source": {
+          "page": 1,
+          "quote": "3 adet 15 kW elektrik motoru"
+        }
+      }
+    ]
+  },
+  "notes": "Adım 9 genişletilmiş eval seti (temsilî tarihsel talep)."
+}

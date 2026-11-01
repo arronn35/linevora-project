@@ -1,0 +1,16 @@
+{
+  "id": "001-pompa",
+  "input_text": "DN50 santrifüj pompa, 10 adet. Basma yüksekliği en az 40 m olmalı.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "santrifüj pompa",
+        "features": {"DN": "50", "min_basma_yuksekligi_m": 40},
+        "quantity": 10,
+        "unit": "adet",
+        "source": {"page": 1, "quote": "DN50 santrifüj pompa, 10 adet"}
+      }
+    ]
+  },
+  "notes": "Tek gereksinimli temel vaka."
+}

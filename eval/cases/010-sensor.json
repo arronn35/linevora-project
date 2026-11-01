@@ -1,0 +1,22 @@
+{
+  "id": "010-sensor",
+  "input_text": "20 adet sıcaklık sensörü, ölçüm aralığı -50 ile 200 derece.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "sıcaklık sensörü",
+        "features": {
+          "min_sicaklik": -50,
+          "max_sicaklik": 200
+        },
+        "quantity": 20,
+        "unit": "adet",
+        "source": {
+          "page": 1,
+          "quote": "20 adet sıcaklık sensörü"
+        }
+      }
+    ]
+  },
+  "notes": "Adım 9 genişletilmiş eval seti (temsilî tarihsel talep)."
+}

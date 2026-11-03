@@ -4,9 +4,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      LINEVORA_SECRET_KEY: "${LINEVORA_SECRET_KEY:?gerekli}"
-      # Parolalar pbkdf2_sha256$... karması olmalı (prod kuralı)
-      LINEVORA_USERS: "${LINEVORA_USERS:?gerekli}"
+      LINEVORA_SECRET_KEY: "${LINEVORA_SECRET_KEY:?required}"
+      # Passwords must be pbkdf2_sha256$... hashes (prod rule)
+      LINEVORA_USERS: "${LINEVORA_USERS:?required}"
     volumes:
       - linevora-data:/data
 volumes:

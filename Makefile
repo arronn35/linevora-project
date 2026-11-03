@@ -1,6 +1,6 @@
 .PHONY: check test eval
 check: test eval
-	@command -v node >/dev/null && node --check src/linevora/web/app.js || echo "node yok, app.js kontrolü atlandı"
+	@command -v node >/dev/null && node --check src/linevora/web/app.js || echo "node not found, app.js check skipped"
 test:
 	.venv/bin/python -m pytest -q
 eval:

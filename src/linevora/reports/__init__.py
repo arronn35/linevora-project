@@ -1,4 +1,4 @@
-"""Raporlar: eksik bilgi, sürüm farkı, alternatif önerileri."""
+"""Reports: missing information, version diff, alternative suggestions."""
 
 from .alternatives import build_alternatives
 from .diff import diff_requirements

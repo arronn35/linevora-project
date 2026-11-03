@@ -1,4 +1,4 @@
-"""Pazar yeri: talep/satış ilanları ve teklifler (inquiry/quote'dan bağımsız)."""
+"""Marketplace: demand/sales listings and offers (independent of inquiry/quote)."""
 
 from .document import (
     generate_listing_document,

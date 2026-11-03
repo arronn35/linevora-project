@@ -1,10 +1,11 @@
-"""Pazar yeri API yüzeyleri: ilan, teklif, karşılaştırma, mesaj, bildirim.
+"""Marketplace API surfaces: listings, offers, comparison, messages, notifications.
 
-Mevcut inquiry/quote akışından bağımsız, paralel modüldür. Her giriş
-yapmış kullanıcı (rol kısıtı yok) hem alım (demand) hem satış (supply)
-ilanı açabilir. Yayımlama/gönderim onaylı POST eylemleriyle yapılır;
-belirtilmemiş fiyat/teknik/ödeme uydurulmaz (``None`` + eksik sorular).
-Rakip teklifler birbirini görmez; karşılaştırmada 'en iyi' alanı dönmez.
+A parallel module, independent of the existing inquiry/quote flow. Every
+signed-in user (no role restriction) can open both a buying (demand) and
+a selling (supply) listing. Publishing/sending is done with confirmed POST
+actions; an unspecified price, technical detail or payment term is never
+invented (``None`` plus missing-field questions). Competing offers never
+see each other; the comparison never returns a "best" field.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ from .deps import get_current_user
 router = APIRouter()
 
 
-# ------------------------------------------------------------------ modeller
+# ------------------------------------------------------------------ models
 
 class ParseListingRequest(BaseModel):
     kind: str = "demand"
@@ -127,7 +128,7 @@ class MessageRequest(BaseModel):
     body: str = ""
 
 
-# ------------------------------------------------------------------ yardımcılar
+# ------------------------------------------------------------------ helpers
 
 def _tenant(user: dict) -> str:
     return str(user.get("tenant") or "default")
@@ -156,7 +157,7 @@ def _check_confirmed(confirmed: bool | None) -> None:
     if confirmed is False:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="bu işlem için kullanıcı onayı gerekli",
+            detail="user approval is required for this action",
         )
 
 
@@ -165,7 +166,7 @@ def _listing_or_404(store, listing_id: str):
         return store.get(listing_id)
     except KeyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="ilan bulunamadı"
+            status_code=status.HTTP_404_NOT_FOUND, detail="listing not found"
         )
 
 
@@ -174,7 +175,7 @@ def _offer_or_404(store, offer_id: str):
         return store.get(offer_id)
     except KeyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="teklif bulunamadı"
+            status_code=status.HTTP_404_NOT_FOUND, detail="offer not found"
         )
 
 
@@ -281,7 +282,7 @@ def _notify(request: Request, user: str, text: str, *, kind: str = "info",
     )
 
 
-# ------------------------------------------------------------ güven yardımcıları
+# ------------------------------------------------------------ trust helpers
 
 def _all_items(store) -> list:
     fn = getattr(store, "list", None)
@@ -302,7 +303,7 @@ def _derive_display_name(tenant: str, subject: str) -> str:
 def _company_summary(request: Request, company_id: str, *, owner_user: str | None = None) -> dict[str, Any]:
     listings, offers, agreements, _m, _n = _stores(request)
     all_listings = _all_items(listings)
-    # "default" tenant yer tutucudur: firma ayrımı kullanıcı üzerinden yapılır.
+    # The "default" tenant is a placeholder: company separation is done via the user.
     scoped = company_id != "default" or owner_user is None
     if scoped:
         company_listings = [l for l in all_listings if l.company_id == company_id]
@@ -332,11 +333,11 @@ def _company_summary(request: Request, company_id: str, *, owner_user: str | Non
         )
     has_agreement = completed > 0
     if has_agreement:
-        level = "doğrulanmış"
+        level = "verified"
     elif has_published:
-        level = "aktif"
+        level = "active"
     else:
-        level = "yeni"
+        level = "new"
     return {
         "company_id": company_id,
         "level": level,
@@ -439,22 +440,22 @@ def marketplace_dashboard(
 
     for l in my:
         _push(l.created_at, "listing",
-              f"İlan oluşturuldu: {l.title}", listing_id=l.id)
+              f"Listing created: {l.title}", listing_id=l.id)
         if l.status in ("published", "awarded", "closed") and l.updated_at != l.created_at:
             _push(l.updated_at, "listing",
-                  f"İlan {l.status}: {l.title}", listing_id=l.id)
+                  f"Listing {l.status}: {l.title}", listing_id=l.id)
     for o in all_offers:
         title = by_id[o.listing_id].title if o.listing_id in by_id else o.listing_id
         if o.offerer_user == subject:
             _push(o.created_at, "offer_sent",
-                  f"Teklif gönderildi: {title}", listing_id=o.listing_id, offer_id=o.id)
+                  f"Offer sent: {title}", listing_id=o.listing_id, offer_id=o.id)
             if o.status == "revision_requested":
                 _push(o.updated_at, "revision_requested",
-                      f"Teklif için revize istendi: {title}",
+                      f"Revision requested for offer: {title}",
                       listing_id=o.listing_id, offer_id=o.id)
         elif o.listing_id in my_ids:
             _push(o.created_at, "offer_received",
-                  f"Teklif alındı: {title}", listing_id=o.listing_id, offer_id=o.id)
+                  f"Offer received: {title}", listing_id=o.listing_id, offer_id=o.id)
             if o.status == "revision_requested":
                 _push(o.updated_at, "revision_requested",
                       f"Revize istendi: {title}",
@@ -468,7 +469,7 @@ def marketplace_dashboard(
         if a.buyer_user == subject or a.seller_user == subject:
             title = by_id[a.listing_id].title if a.listing_id in by_id else a.listing_id
             _push(a.created_at, "agreement",
-                  f"Anlaşma oluştu: {title}", listing_id=a.listing_id, offer_id=a.offer_id)
+                  f"Agreement created: {title}", listing_id=a.listing_id, offer_id=a.offer_id)
 
     activity.sort(key=lambda e: e["timestamp"], reverse=True)
     return {
@@ -506,7 +507,7 @@ def marketplace_company_me(
     }
 
 
-# ------------------------------------------------------------------ ilan ayrıştırma
+# ------------------------------------------------------------------ listing parsing
 
 @router.post("/marketplace/parse-listing")
 def parse_listing_endpoint(
@@ -551,7 +552,7 @@ def create_listing(
             "missing_fields": list(parsed.missing_fields),
             "needs_clarification": bool(parsed.needs_clarification),
         }
-    # Kullanıcının düzenlediği alanlar ayrıştırma sonucunun üstüne yazar.
+    # Fields edited by the user override the parsing result.
     if body.title is not None:
         fields["title"] = body.title
     if body.product is not None:
@@ -602,12 +603,12 @@ def patch_listing(
     if listing.owner_user != _subject(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="yalnızca ilan sahibi düzenleyebilir",
+            detail="only the listing owner can edit",
         )
     if listing.status != "draft":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="yalnızca taslak ilan düzenlenir",
+            detail="only a draft listing can be edited",
         )
     raw_text = body.raw_text if body.raw_text is not None else body.text
     if raw_text is not None:
@@ -616,7 +617,7 @@ def patch_listing(
             parsed = parse_listing(raw_text, kind=listing.kind)
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
-        # Yeni metin yalnızca boş alanları ön doldurur.
+        # New text only pre-fills empty fields.
         if not listing.product:
             listing.product = parsed.product
         if listing.quantity is None:
@@ -676,9 +677,9 @@ def publish_listing(
     if listing.owner_user != _subject(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="yalnızca ilan sahibi yayımlayabilir",
+            detail="only the listing owner can publish",
         )
-    # Eksik bilgi varsa ilan yine yayımlanır; etiket görünür kalır.
+    # If information is missing the listing is still published; the label stays visible.
     if listing.missing_fields and not listing.needs_clarification:
         listing.needs_clarification = True
         listings.update(listing)
@@ -765,7 +766,7 @@ def get_listing(
     listing = _listing_or_404(listings, listing_id)
     if listing.status == "draft" and listing.owner_user != _subject(user):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="ilan bulunamadı"
+            status_code=status.HTTP_404_NOT_FOUND, detail="listing not found"
         )
     payload = _listing_payload(listing)
     payload["document"] = render_listing_document(listing)
@@ -792,10 +793,10 @@ def get_listing(
     return payload
 
 
-# ------------------------------------------------------------------ teklifler
+# ------------------------------------------------------------------ offers
 
 def _catalog_prefill(request: Request, body) -> tuple[Decimal | None, str | None]:
-    """Katalog fiyatı yalnızca isteğe bağlı ön doldurmadır; zorunlu değildir."""
+    """A catalog price is only an optional pre-fill; it is not mandatory."""
     price = to_decimal(body.catalog_price) if getattr(body, "catalog_price", None) is not None else None
     currency = getattr(body, "catalog_currency", None)
     product_id = getattr(body, "catalog_product_id", None)
@@ -813,7 +814,7 @@ def _catalog_prefill(request: Request, body) -> tuple[Decimal | None, str | None
 
 
 def _build_offer_lines(request: Request, listing, body) -> tuple[list[OfferLine], dict[str, Any]]:
-    """Metin/yapılandırılmış gövde/katalog ön doldurmadan teklif satırları kurar."""
+    """Builds offer lines from text, a structured body, or a catalog pre-fill."""
     text = getattr(body, "raw_text", None) or getattr(body, "text", None)
     parsed = parse_offer(text) if text else None
     extras: dict[str, Any] = {}
@@ -891,18 +892,18 @@ def _validate_offer_lines(lines: list[OfferLine]) -> None:
     if not lines:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="teklif için en az bir fiyat kalemi gerekli",
+            detail="at least one priced line is required for an offer",
         )
     for line in lines:
         if line.unit_price is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="birim fiyat gerekli; belirtilmemiş fiyat uydurulmaz",
+                detail="a unit price is required; an unspecified price is never invented",
             )
         if line.unit_price <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="birim fiyat sıfırdan büyük olmalı",
+                detail="the unit price must be greater than zero",
             )
 
 
@@ -958,12 +959,12 @@ def create_offer(
     if listing.owner_user == _subject(user):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="kendi ilanınıza teklif veremezsiniz",
+            detail="you cannot make an offer on your own listing",
         )
     if listing.status != "published":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="yalnızca yayındaki ilana teklif verilir",
+            detail="offers can only be made on a published listing",
         )
     lines, extras = _build_offer_lines(request, listing, body)
     _validate_offer_lines(lines)
@@ -980,7 +981,7 @@ def create_offer(
         target=f"offer:{submitted.id}",
     )
     _notify(request, listing.owner_user,
-            f"İlanınıza yeni teklif geldi: {listing.title}",
+            f"New offer on your listing: {listing.title}",
             kind="offer", listing_id=listing.id, offer_id=submitted.id,
             company_id=listing.company_id)
     payload = _offer_payload(submitted)
@@ -1027,7 +1028,7 @@ def revise_offer(
     if parent.offerer_user != _subject(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="yalnızca teklif veren revize edebilir",
+            detail="only the offerer can revise",
         )
     listing = _listing_or_404(listings, parent.listing_id)
     changes: dict[str, Any] = {}
@@ -1078,7 +1079,7 @@ def request_revision(
     if listing.owner_user != _subject(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="yalnızca ilan sahibi revize isteyebilir",
+            detail="only the listing owner can request a revision",
         )
     try:
         updated = offers.request_revision(offer_id, note=body.note or "")
@@ -1091,7 +1092,7 @@ def request_revision(
         company_id=listing.company_id,
     )
     _notify(request, offer.offerer_user,
-            f"Teklifiniz için revize istendi: {listing.title}",
+            f"A revision was requested for your offer: {listing.title}",
             kind="revision_requested", listing_id=listing.id, offer_id=offer.id,
             company_id=offer.offerer_company_id)
     _audit(request).append(
@@ -1115,7 +1116,7 @@ def select_offer_endpoint(
     if listing.owner_user != _subject(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="yalnızca ilan sahibi teklif seçebilir",
+            detail="only the listing owner can select an offer",
         )
     try:
         agreement = select_offer(
@@ -1129,7 +1130,7 @@ def select_offer_endpoint(
         target=f"offer:{offer_id}", detail=f"agreement:{agreement.id}",
     )
     _notify(request, offer.offerer_user,
-            f"Teklifiniz seçildi: {listing.title}",
+            f"Your offer was selected: {listing.title}",
             kind="offer_selected", listing_id=listing.id, offer_id=offer_id,
             company_id=offer.offerer_company_id)
     return {
@@ -1150,7 +1151,7 @@ def comparison(
     if listing.owner_user != _subject(user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="karşılaştırmayı yalnızca ilan sahibi görür",
+            detail="only the listing owner can see the comparison",
         )
     candidates = [
         o for o in offers.list_for_listing(listing.id)
@@ -1163,22 +1164,22 @@ def comparison(
         reasons: list[str] = []
         for line in (offer.lines or []):
             if listing.unit and line.unit and line.unit != listing.unit:
-                reasons.append(f"birim uyuşmuyor: teklif {line.unit}, ilan {listing.unit}")
+                reasons.append(f"unit mismatch: offer {line.unit}, listing {listing.unit}")
             for key, expected in (listing.features or {}).items():
                 if key in (line.features or {}) and str(line.features[key]) != str(expected):
-                    reasons.append(f"{key} uyuşmuyor: teklif {line.features[key]}, ilan {expected}")
+                    reasons.append(f"{key} mismatch: offer {line.features[key]}, listing {expected}")
         line_currencies = {ln.currency for ln in (offer.lines or []) if ln.currency}
         if len(line_currencies) > 1:
-            reasons.append("teklif içinde birden çok para birimi var")
+            reasons.append("the offer contains multiple currencies")
         if len(currencies) > 1 and offer.currency != first_currency:
-            reasons.append("para birimi diğer tekliflerden farklı")
+            reasons.append("the currency differs from the other offers")
         missing_costs: list[str] = []
         if offer.tax_included is None:
-            missing_costs.append("KDV belirtilmemiş")
+            missing_costs.append("VAT not specified")
         if offer.shipping_included is None:
-            missing_costs.append("nakliye belirtilmemiş")
+            missing_costs.append("shipping not specified")
         elif offer.shipping_included is False and offer.shipping_cost is None:
-            missing_costs.append("nakliye tutarı belirtilmemiş")
+            missing_costs.append("shipping amount not specified")
         _block = _company_block(request, offer.offerer_company_id, offer.offerer_user)
         entries.append({
             "offer_id": offer.id,
@@ -1213,7 +1214,7 @@ def _check_party(listing, offer, user: dict) -> None:
     if _subject(user) not in (listing.owner_user, offer.offerer_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="mesajları yalnızca iki taraf görür",
+            detail="only the two parties can see the messages",
         )
 
 
@@ -1304,11 +1305,11 @@ def read_notification(
         note = notifications.get(notification_id)
     except KeyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="bildirim bulunamadı"
+            status_code=status.HTTP_404_NOT_FOUND, detail="notification not found"
         )
     if note.user != _subject(user):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="bildirim bulunamadı"
+            status_code=status.HTTP_404_NOT_FOUND, detail="notification not found"
         )
     updated = notifications.mark_read(notification_id)
     _audit(request).append(

@@ -1,4 +1,4 @@
-"""Teklif motoru: sürümlü fiyat/şartlar ve onay akışı."""
+"""Quote engine: versioned prices/terms and the approval flow."""
 
 from .models import PriceVersion, Quote, QuoteLine, TermsVersion
 from .store import (

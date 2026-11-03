@@ -1,0 +1,22 @@
+{
+  "id": "005-compressor",
+  "input_text": "1 pc screw compressor, 7 bar working pressure, 55 kW.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "screw compressor",
+        "features": {
+          "pressure_bar": 7,
+          "power_kw": 55
+        },
+        "quantity": 1,
+        "unit": "pcs",
+        "source": {
+          "page": 1,
+          "quote": "1 pc screw compressor"
+        }
+      }
+    ]
+  },
+  "notes": "Extended eval set (representative historical inquiry)."
+}

@@ -1,6 +1,6 @@
-"""Gereksinim ve öneri depoları. MVP gerçeklemesi bellek içidir;
-kalıcı gerçekleme Adım 8'de yönetilen veritabanıyla bu arayüzlerin
-arkasına geçer.
+"""Requirement and suggestion stores. The MVP implementation is in-memory;
+the persistent implementation moves behind these interfaces with a
+managed database.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ class RequirementStore(Protocol):
         ...
 
     def delete_for_version(self, version_id: str) -> list[str]:
-        """Sürümün gereksinimlerini siler, silinen kimlikleri döndürür."""
+        """Deletes the version's requirements; returns the deleted ids."""
         ...
 
 
@@ -81,11 +81,11 @@ class InMemoryRequirementStore:
         page: int = 1,
         quote: str = "",
     ) -> Requirement:
-        # Değişmez-1: kaynaksız gereksinim yazılamaz.
+        # Invariant: a requirement without a source cannot be written.
         if not str(quote).strip():
-            raise ValueError("kaynak alıntı (quote) zorunlu")
+            raise ValueError("a source quote is required")
         if not isinstance(page, int) or page < 1:
-            raise ValueError("kaynak sayfa (page) >= 1 olmalı")
+            raise ValueError("the source page must be >= 1")
         with self._lock:
             requirement = Requirement(
                 id=uuid.uuid4().hex,
@@ -188,8 +188,8 @@ class InMemorySuggestionStore:
     def update_status(self, suggestion_id: str, status: str) -> MatchSuggestion:
         from dataclasses import replace
 
-        if status not in ("bekliyor", "onaylandı", "reddedildi", "düzeltildi"):
-            raise ValueError(f"geçersiz öneri durumu: {status}")
+        if status not in ("pending", "approved", "rejected", "corrected"):
+            raise ValueError(f"invalid suggestion status: {status}")
         with self._lock:
             updated = replace(self._items[suggestion_id], status=status)
             self._items[suggestion_id] = updated
@@ -223,7 +223,7 @@ class InMemorySuggestionStore:
                     product_id=item["product_id"],
                     score=item["score"],
                     reasons=tuple(item.get("reasons", [])),
-                    status=item.get("status", "bekliyor"),
+                    status=item.get("status", "pending"),
                     page=item.get("page", 1),
                     quote=item.get("quote", ""),
                 )

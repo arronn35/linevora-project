@@ -1,1 +1,1 @@
-"""Veritabanı şema ve migration katmanı."""
+"""Database schema and migration layer."""

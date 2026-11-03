@@ -1,17 +1,17 @@
-"""Demo model betikleme (yalnızca dev)."""
+"""Demo model scripting (dev only)."""
 
 import json
 
 from linevora.config import get_settings
 
-CONTENT = "DN50 santrifüj pompa, 2 adet"
+CONTENT = "DN50 centrifugal pump, 2 pcs"
 EXPECTED = {
     "requirements": [
         {
-            "product_type": "santrifüj pompa",
+            "product_type": "centrifugal pump",
             "features": {"DN": "50"},
             "quantity": 2,
-            "unit": "adet",
+            "unit": "pcs",
             "source": {"page": 1, "quote": CONTENT},
         }
     ]
@@ -23,7 +23,7 @@ def _auth(token):
 
 
 def test_demo_model_enables_processing(client, admin_token, inquiry_id):
-    scripts = {f"Sayfa 1:\n{CONTENT}": json.dumps(EXPECTED, ensure_ascii=False)}
+    scripts = {f"Page 1:\n{CONTENT}": json.dumps(EXPECTED, ensure_ascii=False)}
     response = client.post(
         "/v1/admin/demo-model", json={"scripts": scripts}, headers=_auth(admin_token)
     )
@@ -56,12 +56,12 @@ def test_demo_model_admin_only(client, viewer_token):
 
 def test_demo_model_blocked_in_prod(client, monkeypatch):
     monkeypatch.setenv("LINEVORA_ENV", "prod")
-    monkeypatch.setenv("LINEVORA_SECRET_KEY", "x-anahtar")
-    monkeypatch.setenv("LINEVORA_USERS", "patron:s3cret:admin")
+    monkeypatch.setenv("LINEVORA_SECRET_KEY", "x-key")
+    monkeypatch.setenv("LINEVORA_USERS", "boss:s3cret:admin")
     get_settings.cache_clear()
     try:
         login = client.post(
-            "/v1/auth/token", json={"username": "patron", "password": "s3cret"}
+            "/v1/auth/token", json={"username": "boss", "password": "s3cret"}
         )
         token = login.json()["access_token"]
         response = client.post(

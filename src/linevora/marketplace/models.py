@@ -1,9 +1,9 @@
-"""Pazar yeri kayıtları: ilan, teklif, anlaşma, mesaj ve bildirim.
+"""Marketplace records: listings, offers, agreements, messages and notifications.
 
-Mevcut inquiry/quote akışından bağımsız, paralel bir modüldür.
-Para tutarları her zaman ``Decimal`` ile tutulur; belirtilmemiş
-fiyat/teknik/ödeme alanları ``None`` kalır, sistem değer uydurmaz.
-Tenant karşılığı ``company_id`` alanıdır (tokenlardaki ``tenant``).
+A parallel module, independent of the existing inquiry/quote flow.
+Money amounts are always held as ``Decimal``; unspecified price,
+technical or payment fields stay ``None`` — the system never invents values.
+The tenant counterpart is the ``company_id`` field (``tenant`` in tokens).
 """
 
 from __future__ import annotations
@@ -26,17 +26,17 @@ OFFER_STATUSES = (
 
 
 def to_decimal(value: Any) -> Decimal | None:
-    """``value`` değerini ``Decimal``a çevirir; boşsa ``None`` döner."""
+    """Converts ``value`` to ``Decimal``; returns ``None`` when empty."""
     if value is None or value == "":
         return None
     if isinstance(value, Decimal):
         return value
-    # Türkçe ondalık virgülü de kabul et.
-    return Decimal(str(value).replace(".", "").replace(",", ".") if _looks_tr_grouped(str(value)) else str(value).replace(",", "."))
+    # Also accept a decimal comma.
+    return Decimal(str(value).replace(".", "").replace(",", ".") if _looks_grouped(str(value)) else str(value).replace(",", "."))
 
 
-def _looks_tr_grouped(text: str) -> bool:
-    # "1.250,50" gibi binlik noktalı + virgüllü biçim.
+def _looks_grouped(text: str) -> bool:
+    # Grouped form such as "1,250.50" (thousands separator + decimal point).
     return "." in text and "," in text
 
 
@@ -47,7 +47,7 @@ def _dec_or_zero(value: Any) -> Decimal:
 
 @dataclass
 class ListingItem:
-    """İlandaki tek kalem. Tek kalem yeterli; ilan liste de taşıyabilir."""
+    """A single line in a listing. One line is enough; a listing may carry a list."""
 
     product: str | None = None
     quantity: Decimal | None = None
@@ -86,9 +86,9 @@ class Listing:
 
     def __post_init__(self) -> None:
         if self.kind not in LISTING_KINDS:
-            raise ValueError(f"geçersiz ilan türü: {self.kind!r}")
+            raise ValueError(f"invalid listing kind: {self.kind!r}")
         if self.status not in LISTING_STATUSES:
-            raise ValueError(f"geçersiz ilan durumu: {self.status!r}")
+            raise ValueError(f"invalid listing status: {self.status!r}")
         if self.quantity is not None and not isinstance(self.quantity, Decimal):
             self.quantity = to_decimal(self.quantity)
         self.features = dict(self.features or {})
@@ -161,7 +161,7 @@ class Offer:
 
     def __post_init__(self) -> None:
         if self.status not in OFFER_STATUSES:
-            raise ValueError(f"geçersiz teklif durumu: {self.status!r}")
+            raise ValueError(f"invalid offer status: {self.status!r}")
         if self.shipping_cost is not None and not isinstance(self.shipping_cost, Decimal):
             self.shipping_cost = to_decimal(self.shipping_cost)
         self.lines = [
@@ -170,7 +170,7 @@ class Offer:
         ]
 
     def total(self) -> Decimal:
-        """Satır toplamları (+ dahil değilse nakliye) ``Decimal`` ile."""
+        """Line totals (+ shipping when not included) with ``Decimal``."""
         result = Decimal("0")
         for line in self.lines:
             lt = line.line_total
@@ -180,8 +180,7 @@ class Offer:
             result += self.shipping_cost
         return result
 
-    # Türkçe/uyumluluk takma adı.
-    def toplam(self) -> Decimal:
+    def total_alias(self) -> Decimal:
         return self.total()
 
     @property

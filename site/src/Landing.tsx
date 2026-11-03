@@ -6,23 +6,23 @@ import { Demo } from "./components/Demo";
 const Scene = lazy(() => import("./scene/Scene").then((m) => ({ default: m.Scene })));
 
 const STEPS = [
-  ["Alım", "Dosya ya da metin gelir; özgün hali değişmez biçimde saklanır, talep ve sürüm açılır."],
-  ["Çıkarım", "Gereksinimler çıkarılır. Her biri geldiği bölüme işaret eder; işaretsiz çıkarım hatta girmez."],
-  ["Eşleşme", "Farklı terminoyla yazılmış talepler bile katalog adaylarına skor ve gerekçeyle bağlanır."],
-  ["Onay", "Ekip inceler, düzeltir, onaylar. Her karar denetim kaydına yazılır."],
-  ["Teklif", "Yürürlükteki fiyat ve şart sürümüyle taslak çıkar; onaydan sonra belge alınır."],
+  ["Intake", "A file or message arrives; the original is stored unchanged and an inquiry and version are opened."],
+  ["Extraction", "Requirements are extracted. Each one points to the section it came from; an extraction without a pointer never enters the pipeline."],
+  ["Matching", "Even requests written with different terminology are linked to catalog candidates with a score and a rationale."],
+  ["Approval", "The team reviews, corrects and approves. Every decision is written to the audit log."],
+  ["Quote", "A draft is produced from the active price and terms version; the document is issued only after approval."],
 ] as const;
 
 const RULES = [
-  ["Kaynağı olmayan öneri gösterilmez.", "Her öneri, dayandığı belge bölümüne tek tıkla bağlanır."],
-  ["Onay olmadan teklif çıkmaz.", "Bu kural arayüzde değil, veri katmanında denetlenir."],
-  ["Yalnızca sürümlü fiyat ve şart.", "Eski teklifler, üretildikleri sürüme bağlı kalır."],
+  ["No suggestion is shown without a source.", "Every suggestion links back to the document section it relies on, in one click."],
+  ["No quote goes out without approval.", "This rule is enforced in the data layer, not just the interface."],
+  ["Only versioned prices and terms.", "Older quotes stay bound to the version they were created with."],
 ] as const;
 
 const TRUST = [
-  ["Kaynak gösterimi", "Her gereksinim ve teklif kalemi, geldiği belge bölümüne işaret eder. İşaretsiz bilgi hatta girmez."],
-  ["Denetim izi", "Kim, neyi, ne zaman değiştirdi eklemeli kayıtta tutulur. Kayıt silinmez, geçmiş yeniden yazılmaz."],
-  ["Sürümlü fiyat", "Teklif, kurulduğu anın fiyat ve şart sürümüne kilitlenir. Sonraki değişiklik eski teklifi etkilemez."],
+  ["Source references", "Every requirement and quote line points to the document section it came from. Information without a pointer never enters the pipeline."],
+  ["Audit trail", "Who changed what and when is kept in an append-only log. Records are never deleted and history is never rewritten."],
+  ["Versioned pricing", "A quote is locked to the price and terms version in effect when it was created. Later changes do not affect it."],
 ] as const;
 
 function useReveal() {
@@ -75,35 +75,35 @@ export function Landing() {
           <i /> Linevora
         </a>
         <nav>
-          <a href="#akis">Süreç</a>
+          <a href="#process">Process</a>
           <a href="#demo">Demo</a>
-          <a href="#guven">Güven</a>
-          <a href="#kanit">Kanıt</a>
+          <a href="#trust">Trust</a>
+          <a href="#proof">Proof</a>
         </nav>
-        <a className="btn sm" href={PANEL_URL}>Paneli aç</a>
+        <a className="btn sm" href={PANEL_URL}>Open the panel</a>
       </header>
 
       <main id="top">
         <section className="hero" data-stage="0">
           <div className="wrap">
-            <p className="eyebrow rv">Talepten teklife · kaynağı gösterilebilir</p>
-            <h1 className="rv d1">Dağınık talep, <em>denetlenebilir teklif.</em></h1>
+            <p className="eyebrow rv">From inquiry to quote · with sources you can show</p>
+            <h1 className="rv d1">A scattered inquiry, <em>an auditable quote.</em></h1>
             <p className="lede rv d2">
-              Linevora talebi okur, katalogla eşleştirir, teklifi ekibin onayından geçirir. Kaynağı gösterilemeyen bilgi önerilmez; onaylanmayan teklif gönderilmez.
+              Linevora reads the inquiry, matches it against the catalog and puts the quote through team approval. Information that cannot be sourced is never suggested; a quote that is not approved is never sent.
             </p>
             <div className="cta rv d3">
-              <a className="btn" href={PANEL_URL}>Panele gir</a>
-              <a className="btn ghost" href="#akis">Süreci gör</a>
+              <a className="btn" href={PANEL_URL}>Go to the panel</a>
+              <a className="btn ghost" href="#process">See the process</a>
             </div>
-            <p className="hero-note rv d3">Kaynak gösterimi · Denetim izi · Sürümlü fiyat — her adımda doğrulanabilir.</p>
+            <p className="hero-note rv d3">Source references · Audit trail · Versioned pricing — verifiable at every step.</p>
           </div>
-          <div className="scroll-hint" aria-hidden>kaydır ↓</div>
+          <div className="scroll-hint" aria-hidden>scroll ↓</div>
         </section>
 
-        <section id="akis" className="sec" data-stage="1">
+        <section id="process" className="sec" data-stage="1">
           <div className="wrap">
-            <p className="eyebrow rv">Süreç</p>
-            <h2 className="rv d1">Beş adım, <em>tek çizgi.</em></h2>
+            <p className="eyebrow rv">Process</p>
+            <h2 className="rv d1">Five steps, <em>one line.</em></h2>
             <ol className="steps">
               {STEPS.map(([t, d], i) => (
                 <li key={t} className="rv" style={{ transitionDelay: `${i * 70}ms` }}>
@@ -120,16 +120,16 @@ export function Landing() {
 
         <section id="demo" className="sec" data-stage="1">
           <div className="wrap wide">
-            <p className="eyebrow rv">Canlı akış</p>
-            <h2 className="rv d1">Bir e-postadan <em>onaylı teklife.</em></h2>
+            <p className="eyebrow rv">Live flow</p>
+            <h2 className="rv d1">From one email <em>to an approved quote.</em></h2>
             <div className="rv d2"><Demo /></div>
           </div>
         </section>
 
-        <section id="kurallar" className="sec" data-stage="2">
+        <section id="rules" className="sec" data-stage="2">
           <div className="wrap">
-            <p className="eyebrow rv">Değişmez kurallar</p>
-            <h2 className="rv d1">Hızlı olmak, <em>serbest olmak değil.</em></h2>
+            <p className="eyebrow rv">Non-negotiable rules</p>
+            <h2 className="rv d1">Being fast <em>is not being loose.</em></h2>
             <div className="rules">
               {RULES.map(([t, d], i) => (
                 <article key={t} className="rv" style={{ transitionDelay: `${i * 90}ms` }}>
@@ -142,10 +142,10 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="guven" className="sec" data-stage="2">
+        <section id="trust" className="sec" data-stage="2">
           <div className="wrap">
-            <p className="eyebrow rv">Güven kanıtları</p>
-            <h2 className="rv d1">Her iddia, <em>kanıtına bağlı.</em></h2>
+            <p className="eyebrow rv">Trust evidence</p>
+            <h2 className="rv d1">Every claim, <em>tied to its proof.</em></h2>
             <div className="rules">
               {TRUST.map(([t, d], i) => (
                 <article key={t} className="rv" style={{ transitionDelay: `${i * 90}ms` }}>
@@ -155,41 +155,41 @@ export function Landing() {
               ))}
             </div>
             <div className="cta rv" style={{ marginTop: 28 }}>
-              <a className="btn" href={PANEL_URL}>Panelde doğrulayın</a>
+              <a className="btn" href={PANEL_URL}>Verify it in the panel</a>
             </div>
           </div>
         </section>
 
-        <section id="kanit" className="sec" data-stage="2">
+        <section id="proof" className="sec" data-stage="2">
           <div className="wrap">
-            <p className="eyebrow rv">Kanıt</p>
-            <h2 className="rv d1">Ölçülmeyen şey <em>yayımlanmaz.</em></h2>
+            <p className="eyebrow rv">Proof</p>
+            <h2 className="rv d1">What is not measured <em>is not shipped.</em></h2>
             <div className="bento">
               <div className="cell rv">
-                <h3>Eval kapısı</h3>
-                <p>Eşleştirme değişiklikleri sabit tarihsel sette ölçülür; eşik altında çıkış kodu 1 olur.</p>
+                <h3>Eval gate</h3>
+                <p>Matching changes are measured on a fixed historical set; below the threshold the exit code is 1.</p>
                 <div className="gate"><span style={{ width: "86%" }} /><i style={{ left: "80%" }} /></div>
-                <small>skor 0.86 · eşik 0.80</small>
+                <small>score 0.86 · threshold 0.80</small>
               </div>
               <div className="cell rv d1">
-                <h3>Sürüm farkı</h3>
-                <p>Müşteri talebi güncellediğinde neyin değiştiği satır satır görünür.</p>
-                <pre className="diff"><s>− PN25 · 80 adet</s>{"\n"}<ins>+ PN40 · 120 adet</ins></pre>
+                <h3>Version diff</h3>
+                <p>When the customer updates a request, what changed is visible line by line.</p>
+                <pre className="diff"><s>− PN25 · 80 pcs</s>{"\n"}<ins>+ PN40 · 120 pcs</ins></pre>
               </div>
               <div className="cell rv d2">
-                <h3>Denetim kaydı</h3>
-                <p>Sürüm ve denetim kayıtları silinmez, yalnızca eklenir.</p>
+                <h3>Audit log</h3>
+                <p>Version and audit records are never deleted, only appended.</p>
                 <ul className="log">
-                  <li><code>14:02</code> talep açıldı</li>
-                  <li><code>14:09</code> eşleşme düzeltildi</li>
-                  <li><code>14:31</code> teklif onaylandı</li>
+                  <li><code>14:02</code> inquiry opened</li>
+                  <li><code>14:09</code> match corrected</li>
+                  <li><code>14:31</code> quote approved</li>
                 </ul>
               </div>
               <div className="cell wide rv d1">
-                <h3>Sınırları net bir bütün</h3>
-                <p>Tek dağıtım birimi, keskin iç modül sınırları; dil modeli değiştirilebilir bir soyutlamanın arkasında.</p>
+                <h3>A whole with clear boundaries</h3>
+                <p>A single deployment unit with sharp internal module boundaries; the language model sits behind a replaceable abstraction.</p>
                 <div className="chips">
-                  {["API katmanı", "İşleme hattı", "Model soyutlaması", "Anlamsal dizin", "Katalog + fiyat", "Teklif motoru", "Denetim"].map((c) => <span key={c}>{c}</span>)}
+                  {["API layer", "Processing pipeline", "Model abstraction", "Semantic index", "Catalog + pricing", "Quote engine", "Audit"].map((c) => <span key={c}>{c}</span>)}
                 </div>
               </div>
             </div>
@@ -198,11 +198,11 @@ export function Landing() {
 
         <section className="sec final" data-stage="3">
           <div className="wrap">
-            <h2 className="rv">Çizgiyi <em>kapatın.</em></h2>
-            <p className="lede rv d1">Bir talebi içeri alın, kaynağıyla kontrol edin, onayla gönderin.</p>
+            <h2 className="rv">Close <em>the line.</em></h2>
+            <p className="lede rv d1">Bring an inquiry in, check it against its source, and send it with approval.</p>
             <div className="cta rv d2">
-              <a className="btn" href={PANEL_URL}>Panele gir</a>
-              <a className="btn ghost" href="#guven">Güven kanıtları</a>
+              <a className="btn" href={PANEL_URL}>Go to the panel</a>
+              <a className="btn ghost" href="#trust">Trust evidence</a>
             </div>
           </div>
         </section>
@@ -210,7 +210,7 @@ export function Landing() {
 
       <footer className="foot">
         <span>© Linevora</span>
-        <span>Talepten teklife, kaynağı gösterilebilir.</span>
+        <span>From inquiry to quote, with sources you can show.</span>
       </footer>
     </>
   );

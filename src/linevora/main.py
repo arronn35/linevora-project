@@ -1,4 +1,4 @@
-"""Uygulama giriş noktası ve modül bağlantıları."""
+"""Application entry point and module wiring."""
 
 from __future__ import annotations
 
@@ -93,12 +93,12 @@ def create_app(
     if settings.env == "prod":
         if not settings.db_path and not settings.snapshot_path:
             raise RuntimeError(
-                "üretimde kalıcılık zorunlu: LINEVORA_DB_PATH veya "
-                "LINEVORA_SNAPSHOT_PATH tanımlanmalı"
+                "persistence is required in production: LINEVORA_DB_PATH or "
+                "LINEVORA_SNAPSHOT_PATH must be set"
             )
         plain = [u for u, (pw, _r, *_t) in settings.users.items() if not pw.startswith("pbkdf2_sha256$")]
         if plain:
-            raise RuntimeError(f"üretimde düz metin parola kabul edilmez: {plain}")
+            raise RuntimeError(f"plain-text passwords are not accepted in production: {plain}")
     if settings.db_url:
         from .db.migrations import parse_db_url
 
@@ -108,12 +108,12 @@ def create_app(
                 import psycopg  # noqa: F401
             except ImportError as exc:
                 raise RuntimeError(
-                    "PostgreSQL için psycopg sürücüsü gerekli; "
-                    "kurun veya sqlite LINEVORA_DB_URL kullanın"
+                    "the psycopg driver is required for PostgreSQL; "
+                    "install it or use a sqlite LINEVORA_DB_URL"
                 ) from exc
             raise RuntimeError(
-                "PostgreSQL repository katmanı Faz 3 tetikleyicisinde; "
-                "şema db/migrations.py içinde hazır (POSTGRES_DDL)"
+                "the PostgreSQL repository layer is pending; "
+                "the schema is ready in db/migrations.py (POSTGRES_DDL)"
             )
         db_path = target or None
     else:
@@ -276,7 +276,7 @@ def create_app(
 
     if settings.matcher not in ("lexical", "vector", "hybrid", "embedding"):
         raise ValueError(
-            f"geçersiz LINEVORA_MATCHER: {settings.matcher!r} "
+            f"invalid LINEVORA_MATCHER: {settings.matcher!r} "
             "(lexical|vector|hybrid|embedding)"
         )
     if settings.matcher == "embedding":

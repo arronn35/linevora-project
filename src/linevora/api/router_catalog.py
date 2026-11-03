@@ -1,4 +1,4 @@
-"""Katalog yazma yüzeyleri: ürün tanımlama ve listeleme."""
+"""Catalog write surfaces: defining and listing products."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ class ProductRequest(BaseModel):
     names: list[str]
     synonyms: list[str] = []
     features: dict[str, Any] = {}
-    unit: str = "adet"
+    unit: str = "pcs"
 
 
 @router.post("/products", status_code=status.HTTP_201_CREATED)
@@ -32,7 +32,7 @@ def create_product(
     audit: AuditStore = request.app.state.audit_store
     if any(product.code == body.code for product in catalog.list()):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="bu kodla ürün var"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="a product with this code already exists"
         )
     product = catalog.add(
         code=body.code,

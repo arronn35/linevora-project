@@ -1,14 +1,14 @@
-"""SQLite kalıcılık katmanı.
+"""SQLite persistence layer.
 
-Tüm ``InMemory*Store`` sınıfları ``to_snapshot``/``load_snapshot`` taşır.
-Bu modül, herhangi bir store'u SQLite'a bağlayan bir vekil (proxy) sağlar:
-her değiştiren çağrıdan sonra snapshot SQLite'a yazılır, açılışta geri
-yüklenir. Böylece store arayüzleri değişmeden veri süreçler arası kalıcı
-olur. Tablo şeması tekil bir anahtar-değer tablosudur; her store bir
-``namespace`` satırına snapshot JSON'unu yazar.
+Every ``InMemory*Store`` class carries ``to_snapshot``/``load_snapshot``.
+This module provides a proxy that binds any store to SQLite: after every
+mutating call the snapshot is written to SQLite and reloaded at startup.
+Data therefore persists across processes without changing the store
+interfaces. The table schema is a single key-value table; each store
+writes its snapshot JSON to one ``namespace`` row.
 
-Yapılandırma: ``LINEVORA_DB_PATH`` verilirse ``create_app`` varsayılan
-store'ları bu vekille sarar; verilmezse bellek içi davranış korunur.
+Configuration: when ``LINEVORA_DB_PATH`` is given, ``create_app`` wraps
+the default stores with this proxy; otherwise in-memory behavior is kept.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ _READ_METHODS = frozenset(
 
 
 class SqliteSnapshotStore:
-    """Bir store'u SQLite snapshot kalıcılığıyla saran vekil."""
+    """A proxy that wraps a store with SQLite snapshot persistence."""
 
     def __init__(self, inner: Any, db_path: str, namespace: str) -> None:
         object.__setattr__(self, "_inner", inner)
@@ -57,7 +57,7 @@ class SqliteSnapshotStore:
                     {"items": [json.loads(payload) for _key, payload in rows]}
                 )
             elif row is not None:
-                # Bozuk kayıt sessizce yutulmaz: sessiz veri kaybını önle.
+                # A corrupt record is not silently swallowed: prevent silent data loss.
                 payload = json.loads(row[0])
                 if isinstance(payload, dict) and payload.get("schema_version") == 1:
                     payload = payload.get("data")
@@ -79,7 +79,7 @@ class SqliteSnapshotStore:
         if isinstance(items, list) and all(
             isinstance(item, dict) and "id" in item for item in items
         ):
-            # Satır bazlı artımlı yazım: yalnızca değişen kayıtlar yazılır.
+            # Row-based incremental writes: only changed records are written.
             current = {
                 str(item["id"]): json.dumps(item, ensure_ascii=False, default=str)
                 for item in items
@@ -142,7 +142,7 @@ class SqliteSnapshotStore:
 
 
 def wrap_store(inner: Any, db_path: str | None, namespace: str) -> Any:
-    """``db_path`` verilmişse store'u kalıcı vekille sar, yoksa aynen döndür."""
+    """When ``db_path`` is given, wrap the store with the persistent proxy; otherwise return it as-is."""
     if not db_path:
         return inner
     return SqliteSnapshotStore(inner, db_path, namespace)

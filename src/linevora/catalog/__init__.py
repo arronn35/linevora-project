@@ -1,4 +1,4 @@
-"""Katalog: ürün kayıtları."""
+"""Catalog: product records."""
 
 from .models import Product
 from .store import CatalogStore, InMemoryCatalogStore, seed_demo_catalog

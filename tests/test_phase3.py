@@ -1,4 +1,4 @@
-"""Faz 3 kabul testleri: migration, recovery/DLQ, embedding, tenant, platform."""
+"""Phase 3 acceptance tests: migrations, recovery/DLQ, embedding, tenant, platform."""
 
 import sqlite3
 
@@ -45,10 +45,10 @@ def test_job_recovery_requeues_running():
 
 def test_embedding_matcher_and_http_embedder_shape():
     product = Product(
-        id="p1", code="V-001", names=("küresel vana",), synonyms=("kesme vanası",)
+        id="p1", code="V-001", names=("ball valve",), synonyms=("shut-off valve",)
     )
-    other = Product(id="p2", code="P-001", names=("pompa",))
-    req = Requirement(id="r1", version_id="v1", product_type="kesme vanası")
+    other = Product(id="p2", code="P-001", names=("pump",))
+    req = Requirement(id="r1", version_id="v1", product_type="shut-off valve")
     results = EmbeddingMatcher(HashingEmbedder()).suggest(req, [other, product])
     assert results and results[0].product.id == "p1"
 
@@ -66,7 +66,7 @@ def test_embedding_matcher_and_http_embedder_shape():
         return Resp(_json.dumps({"data": [{"embedding": [0.1, 0.2]}]}).encode())
 
     embedder = HttpEmbedder("https://example.invalid/embeddings", opener=opener)
-    assert embedder.embed("metin") == [0.1, 0.2]
+    assert embedder.embed("text") == [0.1, 0.2]
 
 
 def test_tenant_parse_and_isolation(client, app, admin_token):
@@ -85,7 +85,7 @@ def test_tenant_parse_and_isolation(client, app, admin_token):
     )
 
 
-def test_kvkk_erasure(client, admin_token, inquiry_id):
+def test_erasure(client, admin_token, inquiry_id):
     headers = _auth(admin_token)
     deleted = client.delete(f"/v1/inquiries/{inquiry_id}", headers=headers)
     assert deleted.status_code == 200

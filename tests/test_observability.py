@@ -1,4 +1,4 @@
-"""Gözlemlenebilirlik ve güvenlik başlıkları (Adım 8 kabulü, bölüm 1)."""
+"""Observability and security headers."""
 
 import pytest
 
@@ -30,8 +30,8 @@ def test_metrics_requires_admin(client, viewer_token):
 def test_request_id_header(client):
     plain = client.get("/v1/health")
     assert plain.headers["X-Request-ID"]
-    echo = client.get("/v1/health", headers={"X-Request-ID": "iz-123"})
-    assert echo.headers["X-Request-ID"] == "iz-123"
+    echo = client.get("/v1/health", headers={"X-Request-ID": "trace-123"})
+    assert echo.headers["X-Request-ID"] == "trace-123"
 
 
 def test_security_headers(client):
@@ -55,8 +55,8 @@ def test_prod_requires_secrets(monkeypatch):
 
 def test_prod_accepts_custom_secrets(monkeypatch):
     monkeypatch.setenv("LINEVORA_ENV", "prod")
-    monkeypatch.setenv("LINEVORA_SECRET_KEY", "guclu-anahtar")
-    monkeypatch.setenv("LINEVORA_USERS", "patron:s3cret:admin")
+    monkeypatch.setenv("LINEVORA_SECRET_KEY", "strong-key")
+    monkeypatch.setenv("LINEVORA_USERS", "boss:s3cret:admin")
     get_settings.cache_clear()
     try:
         assert get_settings().env == "prod"

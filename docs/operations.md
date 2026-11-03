@@ -1,67 +1,57 @@
-# İşletim: Yedekleme, Güvenlik, Pilot Kabulü
+# Operations: Backup, Security, Pilot Acceptance
 
-## Ortam Değişkenleri
+## Environment Variables
 
-| Değişken | Varsayılan | Açıklama |
+| Variable | Default | Description |
 |---|---|---|
-| `LINEVORA_ENV` | `dev` | `dev` ya da `prod`. `prod` iken imza anahtarı ve kullanıcılar zorunlu; aksi halde uygulama açılmaz. |
-| `LINEVORA_SECRET_KEY` | geliştirme değeri | Belirteç imza anahtarı. Üretimde güçlü, benzersiz değer şart. |
-| `LINEVORA_TOKEN_TTL` | `3600` | Belirteç ömrü (saniye). |
-| `LINEVORA_USERS` | geliştirme kullanıcıları | `ad:parola:rol,...` biçimi. Roller: `admin`, `specialist`, `viewer`. |
-| `LINEVORA_BLOB_DIR` | `var/blobs` | Özgün dosyaların değişmez deposu. |
-| `LINEVORA_SNAPSHOT_PATH` | (yok) | Verilirse açılışta yüklenir; `POST /v1/admin/snapshot` ile kaydedilir. |
+| `LINEVORA_ENV` | `dev` | `dev` or `prod`. In `prod` the signing key and users are mandatory; otherwise the app will not start. |
+| `LINEVORA_SECRET_KEY` | development value | Token signing key. A strong, unique value is required in production. |
+| `LINEVORA_TOKEN_TTL` | `3600` | Token lifetime (seconds). |
+| `LINEVORA_USERS` | development users | `name:password:role,...` form. Roles: `admin`, `specialist`, `viewer`. |
+| `LINEVORA_BLOB_DIR` | `var/blobs` | Immutable store for original files. |
+| `LINEVORA_SNAPSHOT_PATH` | (none) | When set, loaded at startup; saved via `POST /v1/admin/snapshot`. |
 
-## Yedekleme ve Geri Yükleme
+## Backup and Restore
 
-Dayanıklılık iki parçadır: anlık görüntü dosyası (tüm kayıtlar) ve dosya
-deposu (`blob_dir`). İkisi birlikte yedeklenir.
+Durability has two parts: the snapshot file (all records) and the file
+store (`blob_dir`). Back both of them up together.
 
-1. Kaydet: `POST /v1/admin/snapshot` (yalnızca `admin`). Yanıt `{"saved": true, "path": ...}` olur.
-2. Kopyala: anlık görüntü dosyasını ve `blob_dir` içeriğini yedek ortamına kopyalayın.
-3. Kuşaklar: her kayıtta önceki dosya `.1`–`.5` olarak saklanır; altıncı kuşak silinir.
-4. Geri yükle: yedek dosyaları yerlerine koyup uygulamayı yeniden başlatın; açılışta otomatik yüklenir.
+1. Save: `POST /v1/admin/snapshot` (admin only). The response is `{"saved": true, "path": ...}`.
+2. Copy: copy the snapshot file and the `blob_dir` contents to backup media.
+3. Generations: on each save the previous file is kept as `.1`–`.5`; the sixth generation is deleted.
+4. Restore: put the backup files back in place and restart the application; they are loaded automatically at startup.
 
-Geri yükleme denemesi (`tests/test_snapshot.py` içinde otomatik): kaydet →
-yedekle → değiştir → yedeği geri koy → yükle → eski durum doğrulanır.
+Restore drill (automated in `tests/test_snapshot.py`): save → back up →
+change → restore the backup → load → the old state is verified.
 
-## Saklama Politikası (pilot)
+## Retention Policy (pilot)
 
-- Denetim kayıtları: yalnızca eklenir, silinmez; pilot boyunca süresiz saklanır.
-- Talep dosyaları: içerik adresli, değişmez; müşteri ilişkisi sürdükçe saklanır.
-- Anlık görüntü kuşakları: son 5 kayıt; daha eskiler işletme yedeklerine taşınır.
-- Model sağlayıcısına giden veri: yönetilen servis kararı gereği talep metinleri
-  sağlayıcıya iletilir; gizlilik metninde müşteriye beyan edilir.
+- Audit records: append-only, never deleted; retained indefinitely during the pilot.
+- Inquiry files: content-addressed, immutable; retained while the customer relationship lasts.
+- Snapshot generations: the last 5 saves; older ones move to operations backups.
+- Data sent to the model provider: under the managed-service decision, inquiry texts are transmitted to the provider; this is declared to the customer in the privacy notice.
 
-## Güvenlik Notları
+## Security Notes
 
-- Üretimde `LINEVORA_ENV=prod` zorunludur; varsayılan anahtar/kullanıcılarla açılmaz.
-- Roller: fiyat/şart ve ürün tanımlama yalnızca `admin`; teklif hazırlama
-  `specialist` ve üstü; onay ve iade yalnızca `admin`; okuma tüm roller.
-- Onaylanmamış teklif dışa aktarılamaz; bu kural veri katmanında denetlenir.
-- Tüm karar işlemleri denetim kaydına yazılır (`GET /v1/audit`, yalnızca `admin`).
-- Yanıtlar güvenlik başlıkları taşır (`nosniff`, `DENY`, `no-referrer`).
-- Adım 9 ile gelenler: parola karması (`pbkdf2_sha256$...` biçimi desteklenir,
-  düz metin yalnızca geriye dönük uyumluluk için), token ucu hız sınırı
-  (`LINEVORA_RATE_LIMIT_PER_MINUTE`), belirteç iptali (`POST /v1/auth/revoke`),
-  PDF teklif çıktısı (`GET /v1/quotes/{id}/export.pdf`), SQLite kalıcılık
-  (`LINEVORA_DB_PATH`).
-- Bilinen sınırlar (pilot sonrası): anahtar rotasyonu, iptal listesinin
-  süreçler arası kalıcılığı, harici izleme sistemine metrik gönderimi,
-  gerçek tarihsel taleplerle model doğruluk ölçümü (eval seti şu an temsilî).
+- `LINEVORA_ENV=prod` is mandatory in production; the app will not start with the default key/users.
+- Roles: price/terms and product definition are `admin` only; quote preparation is `specialist` and above; approval and return are `admin` only; reading is all roles.
+- An unapproved quote cannot be exported; this rule is enforced in the data layer.
+- All decision operations are written to the audit log (`GET /v1/audit`, admin only).
+- Responses carry security headers (`nosniff`, `DENY`, `no-referrer`).
+- Arriving with the persistence step: password hashing (the `pbkdf2_sha256$...` form is supported; plain text only for backward compatibility), a rate limit on the token endpoint (`LINEVORA_RATE_LIMIT_PER_MINUTE`), token revocation (`POST /v1/auth/revoke`), PDF quote output (`GET /v1/quotes/{id}/export.pdf`), SQLite persistence (`LINEVORA_DB_PATH`).
+- Known limits (after the pilot): key rotation, cross-process persistence of the revocation list, sending metrics to an external monitoring system, measuring model accuracy on real historical inquiries (the eval set is currently representative).
 
-## Gözlemlenebilirlik
+## Observability
 
-- `GET /v1/metrics` (yalnızca `admin`): HTTP sayaçları, iş durumları, model
-  çağrı sayıları, teklif durumları ve ortalama onay süresi.
-- Her yanıt `X-Request-ID` taşır; istek kaydı (`linevora.http` günlüğü)
-  yöntem, yol, durum ve süreyi içerir.
-- Eşleştirme değişiklikleri eval kapısından geçmeden yayımlanmaz:
+- `GET /v1/metrics` (admin only): HTTP counters, job statuses, model call counts, quote statuses and average approval time.
+- Every response carries `X-Request-ID`; the request log (the `linevora.http` logger) includes the method, path, status and duration.
+- Matching changes are not shipped before passing the eval gate:
   `python eval/run_eval.py --cases eval/cases --extractor scripted --min-score 0.8`.
 
-## Pilot Kabul Listesi
+## Pilot Acceptance Checklist
 
-- [ ] Pilot ekip ve 10–20 tarihsel talep + katalog örneği hazır.
-- [ ] `pytest -q` yeşil; eval kapısı eşikte (`--min-score` pilotla netleşir).
-- [ ] `LINEVORA_ENV=prod`, güçlü anahtar ve gerçek kullanıcılarla açılış doğrulandı.
-- [ ] Yedekleme + geri yükleme denemesi gerçek ortamda yapıldı.
-- [ ] Teklif süresi, ilk-teklif doğruluğu ve düzeltme oranı ölçülüyor (`/v1/metrics`).
+- [ ] Pilot team and 10–20 historical inquiries plus a catalog sample are ready.
+- [ ] `pytest -q` is green; the eval gate is at threshold (`--min-score` to be settled with the pilot).
+- [ ] Startup verified with `LINEVORA_ENV=prod`, a strong key and real users.
+- [ ] A backup + restore drill has been run in the real environment.
+- [ ] Quote time, first-quote accuracy and correction rate are measured (`/v1/metrics`).

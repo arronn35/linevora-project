@@ -1,1 +1,1 @@
-"""Denetim kaydı."""
+"""Audit log."""

@@ -1,4 +1,4 @@
-"""Gözlemlenebilirlik: ölçümler, istek izleme, anlık görüntü."""
+"""Observability: metrics, request tracing, snapshots."""
 
 from .metrics import MetricsRegistry
 from .middleware import setup_observability

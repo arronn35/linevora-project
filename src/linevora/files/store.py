@@ -1,7 +1,8 @@
-"""Değişmez dosya deposu (içerik adresli).
+"""Immutable file store (content-addressed).
 
-Aynı içerik her zaman aynı kimliğe çözülür; yazılan içerik değiştirilemez.
-Yönetilen nesne deposu gerçeklemesi bu arayüzün arkasına geçer (Adım 8 öncesi).
+The same content always resolves to the same id; written content cannot
+be changed. A managed object-store implementation moves behind this
+interface.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ class BlobStore(Protocol):
 
 
 class LocalBlobStore:
-    """Dosya sistemine dayalı, tek düğümlük depo."""
+    """Filesystem-based, single-node store."""
 
     def __init__(self, root: str) -> None:
         self._root = root
@@ -58,5 +59,5 @@ class LocalBlobStore:
         except FileNotFoundError:
             raise KeyError(file_id)
         if hashlib.sha256(content).hexdigest() != file_id:
-            raise ValueError(f"blob bütünlük hatası: {file_id}")
+            raise ValueError(f"blob integrity error: {file_id}")
         return content

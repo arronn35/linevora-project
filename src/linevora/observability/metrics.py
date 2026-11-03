@@ -1,8 +1,8 @@
-"""Süreç-içi ölçüm kayıtları (MVP).
+"""In-process metric records (MVP).
 
-HTTP sayaçları ara katmanda tutulur; iş, model ve teklif ölçümleri
-`/v1/metrics` anında depolardan taranır. Dışa aktarma (harici izleme
-sistemine gönderim) pilot sonrasına bırakılmıştır.
+HTTP counters are kept in the middleware; job, model and quote metrics
+are scanned from the stores at `/v1/metrics` time. Export (sending to an
+external monitoring system) is left until after the pilot.
 """
 
 from __future__ import annotations

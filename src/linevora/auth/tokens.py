@@ -1,8 +1,8 @@
-"""HMAC imzalı, durum taşımayan erişim belirteçleri (MVP).
+"""HMAC-signed, stateless access tokens (MVP).
 
-Biçim: base64url(gövde) + "." + hex(HMAC-SHA256(imza anahtarı, gövde)).
-Gövde: {"sub": kullanıcı, "roles": [...], "exp": unix zaman}.
-Üretim sertleştirmesi (anahtar rotasyonu, iptal listesi) Adım 8'dedir.
+Format: base64url(body) + "." + hex(HMAC-SHA256(signing key, body)).
+Body: {"sub": user, "roles": [...], "exp": unix time}.
+Production hardening (key rotation, revocation list) lives elsewhere.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from typing import Any
 
 
 class TokenError(Exception):
-    """Belirteç geçersiz ya da süresi dolmuş."""
+    """The token is invalid or has expired."""
 
 
 def _b64encode(raw: bytes) -> str:
@@ -41,8 +41,8 @@ def issue_token(secret: str, subject: str, roles: list[str], ttl_seconds: int, t
 
 
 class RevokedTokens:
-    """İptal edilmiş belirteç kimlikleri (jti). Süreç içi; kalıcı sürüm
-    aynı arayüzle DB arkasına geçebilir."""
+    """Revoked token ids (jti). In-process; the persistent version
+    can move behind a database with the same interface."""
 
     def __init__(self) -> None:
         self._revoked: set[str] = set()
@@ -59,19 +59,19 @@ def verify_token(secret: str, token: str) -> dict[str, Any]:
     try:
         body, signature = token.rsplit(".", 1)
     except ValueError:
-        raise TokenError("bozuk belirteç")
+        raise TokenError("malformed token")
     expected = hmac.new(secret.encode(), body.encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, signature):
-        raise TokenError("geçersiz imza")
+        raise TokenError("invalid signature")
     try:
         payload = json.loads(_b64decode(body))
         expired = int(payload.get("exp", 0)) < time.time()
     except (ValueError, TypeError):
-        raise TokenError("bozuk gövde")
+        raise TokenError("malformed body")
     if expired:
-        raise TokenError("süresi dolmuş")
+        raise TokenError("expired")
     if not payload.get("sub"):
-        raise TokenError("özne yok")
+        raise TokenError("missing subject")
     return {
         "subject": payload["sub"],
         "roles": list(payload.get("roles", [])),

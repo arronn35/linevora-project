@@ -1,0 +1,21 @@
+{
+  "id": "006-heat-exchanger",
+  "input_text": "2 pcs plate heat exchangers, capacity must be 500 kW.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "plate heat exchanger",
+        "features": {
+          "capacity_kw": 500
+        },
+        "quantity": 2,
+        "unit": "pcs",
+        "source": {
+          "page": 1,
+          "quote": "2 pcs plate heat exchangers"
+        }
+      }
+    ]
+  },
+  "notes": "Extended eval set (representative historical inquiry)."
+}

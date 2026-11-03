@@ -1,4 +1,4 @@
-"""Adım 5 API yüzeyleri: sürüm işleme, iş durumu, öneri listeleme."""
+"""Pipeline API surfaces: version processing, job status, suggestion listing."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def job_status(
     try:
         job = jobs.get(job_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="iş yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="job not found")
     return {
         "job_id": job.id,
         "kind": job.kind,
@@ -97,7 +97,7 @@ def list_suggestions(
     suggestion_payloads = []
     for requirement in requirements.list_for_version(version.id):
         if not str(requirement.quote).strip():
-            continue  # Değişmez-1: kaynaksız kayıt gösterilmez.
+            continue  # Invariant: a record without a source is never shown.
         requirement_payloads.append(
             {
                 "id": requirement.id,
@@ -135,7 +135,7 @@ def list_suggestions(
 
 
 class SuggestionDecision(BaseModel):
-    status: str  # onaylandı | reddedildi | düzeltildi
+    status: str  # approved | rejected | corrected
     note: str = ""
 
 
@@ -158,7 +158,7 @@ def decide_suggestion(
     try:
         updated = suggestions.update_status(suggestion_id, body.status)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="öneri yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="suggestion not found")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     audit.append(
@@ -195,7 +195,7 @@ def update_requirement(
             unit=body.unit,
         )
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="gereksinim yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="requirement not found")
     audit.append(
         actor=user["subject"],
         action="requirement.update",

@@ -1,4 +1,4 @@
-"""Gereksinim ve eşleşme önerisi kayıtları."""
+"""Requirement and match-suggestion records."""
 
 from __future__ import annotations
 
@@ -25,6 +25,6 @@ class MatchSuggestion:
     product_id: str
     score: float
     reasons: tuple[str, ...] = ()
-    status: str = "bekliyor"
+    status: str = "pending"
     page: int = 1
     quote: str = ""

@@ -1,4 +1,4 @@
-"""İş kaydı. Durumlar: queued / running / done / failed."""
+"""Job record. Statuses: queued / running / done / failed."""
 
 from __future__ import annotations
 

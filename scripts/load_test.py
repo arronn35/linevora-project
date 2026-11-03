@@ -1,7 +1,7 @@
-"""Basit yük testi: çalışan bir Linevora'ya eşzamanlı sağlık + liste istekleri.
+"""Simple load test: concurrent health + list requests against a running Linevora.
 
-Kullanım: python scripts/load_test.py --url http://127.0.0.1:8000 --requests 100 --concurrency 10
-Yalnızca stdlib kullanır; p95 gecikmeyi raporlar.
+Usage: python scripts/load_test.py --url http://127.0.0.1:8000 --requests 100 --concurrency 10
+Uses only the stdlib; reports p95 latency.
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ def main() -> int:
     latencies.sort()
     p95 = latencies[int(len(latencies) * 0.95) - 1]
     print(
-        f"istek={len(latencies)} ort={statistics.mean(latencies):.1f}ms "
-        f"p95={p95:.1f}ms maks={latencies[-1]:.1f}ms"
+        f"requests={len(latencies)} mean={statistics.mean(latencies):.1f}ms "
+        f"p95={p95:.1f}ms max={latencies[-1]:.1f}ms"
     )
     return 0
 

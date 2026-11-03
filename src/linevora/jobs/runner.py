@@ -1,7 +1,7 @@
-"""İş koşucu: kuyruğa yazar, çalışan işletir, hata yeniden denenir.
+"""Job runner: writes to the queue, a worker executes, errors are retried.
 
-`inline=True` kipinde iş, gönderildiği anda aynı iş parçacığında işletilir
-(sınamalar için belirlenimci); normal kipte art alan işçisi kullanır.
+In `inline=True` mode the job runs in the same thread when submitted
+(deterministic, for tests); in normal mode a background worker is used.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class JobRunner:
                 self._queue.put(job.id)
 
     def recover(self) -> list[Job]:
-        """Açılışta yarım kalmış işleri yeniden kuyruğa alır (running→queued)."""
+        """Re-queues jobs left half-finished at startup (running→queued)."""
         pending: list[Job] = []
         try:
             jobs = self._store.list()
@@ -53,7 +53,7 @@ class JobRunner:
         for job in jobs:
             if job.status == "running":
                 job.status = "queued"
-                job.error = "recovery: yeniden kuyruğa alındı"
+                job.error = "recovery: re-queued"
                 self._store.update(job)
                 pending.append(job)
             elif job.status == "queued":
@@ -62,7 +62,7 @@ class JobRunner:
         return pending
 
     def dead_letter(self) -> list[Job]:
-        """DLQ görünümü: kalıcı başarısız işler."""
+        """DLQ view: permanently failed jobs."""
         return [job for job in self._store.list() if job.status == "failed"]
 
     def submit(self, kind: str, payload: dict[str, Any], actor: str) -> Job:
@@ -94,7 +94,7 @@ class JobRunner:
         handler = self._handlers.get(job.kind)
         if handler is None:
             job.status = "failed"
-            job.error = f"bilinmeyen iş türü: {job.kind}"
+            job.error = f"unknown job kind: {job.kind}"
             self._store.update(job)
             self._audit.append(
                 actor="system", action="job.failed", target=f"job:{job.id}", detail=job.error
@@ -107,7 +107,7 @@ class JobRunner:
             self._store.update(job)
             try:
                 result = handler(dict(job.payload))
-            except Exception as exc:  # yeniden denenecek hata
+            except Exception as exc:  # error to be retried
                 job.error = f"{type(exc).__name__}: {exc}"
                 self._store.update(job)
                 if self._backoff and job.attempts < job.max_attempts:

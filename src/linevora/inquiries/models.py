@@ -1,4 +1,4 @@
-"""Talep kayıtları (veri modelindeki Talep / TalepSürümü)."""
+"""Inquiry records (Inquiry / InquiryVersion in the data model)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ class Inquiry:
     id: str
     customer: str
     title: str
-    status: str = "açık"
+    status: str = "open"
     created_by: str = ""
     tenant_id: str = "default"
 

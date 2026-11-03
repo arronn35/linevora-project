@@ -1,21 +1,21 @@
 {
   "id": "007-fan",
-  "input_text": "5 adet aksiyal fan, debi en az 10000 m3/h.",
+  "input_text": "5 pcs axial fans, flow rate at least 10000 m3/h.",
   "expected": {
     "requirements": [
       {
-        "product_type": "aksiyal fan",
+        "product_type": "axial fan",
         "features": {
-          "min_debi_m3h": 10000
+          "min_flow_m3h": 10000
         },
         "quantity": 5,
-        "unit": "adet",
+        "unit": "pcs",
         "source": {
           "page": 1,
-          "quote": "5 adet aksiyal fan"
+          "quote": "5 pcs axial fans"
         }
       }
     ]
   },
-  "notes": "Adım 9 genişletilmiş eval seti (temsilî tarihsel talep)."
+  "notes": "Extended eval set (representative historical inquiry)."
 }

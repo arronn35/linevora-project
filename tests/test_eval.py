@@ -1,4 +1,4 @@
-"""Eval koşucu: puanlama ve kapı mantığı."""
+"""Eval runner: scoring and gate logic."""
 
 from eval.run_eval import (
     empty_extractor,
@@ -13,9 +13,9 @@ CASE = {
     "expected": {
         "requirements": [
             {
-                "product_type": "pompa",
+                "product_type": "pump",
                 "quantity": 10,
-                "unit": "adet",
+                "unit": "pcs",
                 "source": {"page": 1, "quote": "x"},
             }
         ]
@@ -34,7 +34,7 @@ def test_empty_scores_zero():
 
 
 def test_partial_credit_for_missing_source():
-    actual = {"requirements": [{"product_type": "pompa", "quantity": 10, "unit": "adet"}]}
+    actual = {"requirements": [{"product_type": "pump", "quantity": 10, "unit": "pcs"}]}
     detail = score_case(CASE["expected"], actual)
     assert 0.0 < detail["score"] < 1.0
 
@@ -43,9 +43,9 @@ def test_wrong_product_type_scores_low():
     actual = {
         "requirements": [
             {
-                "product_type": "vana",
+                "product_type": "valve",
                 "quantity": 10,
-                "unit": "adet",
+                "unit": "pcs",
                 "source": {"page": 1, "quote": "x"},
             }
         ]
@@ -57,12 +57,12 @@ def test_wrong_product_type_scores_low():
 def test_scripted_extractor_uses_real_code_path():
     case = {
         "id": "s",
-        "input_text": "10 adet pompa",
+        "input_text": "10 pcs pump",
         "expected": {
             "requirements": [
                 {
-                    "product_type": "pompa",
-                    "source": {"page": 1, "quote": "10 adet pompa"},
+                    "product_type": "pump",
+                    "source": {"page": 1, "quote": "10 pcs pump"},
                 }
             ]
         },

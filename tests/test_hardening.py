@@ -1,4 +1,4 @@
-"""Adım 9: kalıcılık, model bağdaştırıcısı, anlamsal eşleştirme, güvenlik, PDF."""
+"""Persistence, model adapter, semantic matching, security, PDF."""
 
 import io
 import json
@@ -20,19 +20,19 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-# --- Faz 1: kalıcılık ---
+# --- Persistence ---
 
 
 def test_sqlite_store_survives_restart(tmp_path):
     db = str(tmp_path / "linevora.db")
     first = wrap_store(InMemoryInquiryStore(), db, "inquiries")
-    created = first.create_inquiry("Acme", "Pompa")
+    created = first.create_inquiry("Acme", "Pump")
     second = wrap_store(InMemoryInquiryStore(), db, "inquiries")
     assert second.get_inquiry(created.id).customer == "Acme"
     assert [item.id for item in second.list()] == [created.id]
 
 
-# --- Faz 2: gerçek model bağdaştırıcısı ---
+# --- Real model adapter ---
 
 
 class _FakeResponse(io.BytesIO):
@@ -47,7 +47,7 @@ def test_http_model_client_parses_chat_response():
     def opener(request, timeout):
         assert timeout == 5
         body = json.loads(request.data.decode())
-        assert body["messages"][1]["content"] == "soru"
+        assert body["messages"][1]["content"] == "question"
         payload = {"choices": [{"message": {"content": '{"requirements": []}'}}]}
         return _FakeResponse(json.dumps(payload).encode())
 
@@ -58,13 +58,13 @@ def test_http_model_client_parses_chat_response():
         timeout_seconds=5,
         opener=opener,
     )
-    assert client.complete("sistem", "soru") == '{"requirements": []}'
+    assert client.complete("system", "question") == '{"requirements": []}'
     assert client.name == "http:m"
 
 
 def test_http_model_client_raises_after_retries():
     def opener(request, timeout):
-        raise OSError("ağ yok")
+        raise OSError("no network")
 
     client = HttpModelClient(
         "https://example.invalid/v1", max_attempts=2, opener=opener
@@ -73,20 +73,20 @@ def test_http_model_client_raises_after_retries():
         client.complete("s", "u")
 
 
-# --- Faz 3: anlamsal eşleştirme ---
+# --- Semantic matching ---
 
 
 def test_vector_matcher_finds_related_product():
     product = Product(
         id="p1",
         code="V-001",
-        names=("küresel vana",),
-        synonyms=("kesme vanası", "shut-off valve"),
+        names=("ball valve",),
+        synonyms=("shut-off valve",),
         features={"DN": "25"},
     )
-    other = Product(id="p2", code="P-009", names=("santrifüj pompa",))
+    other = Product(id="p2", code="P-009", names=("centrifugal pump",))
     requirement = Requirement(
-        id="r1", version_id="v1", product_type="kesme vanası", features={"DN": "25"}
+        id="r1", version_id="v1", product_type="shut-off valve", features={"DN": "25"}
     )
     results = VectorMatcher().suggest(requirement, [other, product])
     assert results and results[0].product.id == "p1"
@@ -94,16 +94,16 @@ def test_vector_matcher_finds_related_product():
     assert hybrid and hybrid[0].product.id == "p1"
 
 
-# --- Faz 4: güvenlik ---
+# --- Security ---
 
 
 def test_password_hash_roundtrip_and_plain_compat():
-    stored = hash_password("gizli123")
+    stored = hash_password("secret123")
     assert is_hashed(stored)
-    assert verify_password(stored, "gizli123")
-    assert not verify_password(stored, "yanlış")
-    assert verify_password("düz-metin", "düz-metin")
-    assert not verify_password("düz-metin", "başka")
+    assert verify_password(stored, "secret123")
+    assert not verify_password(stored, "wrong")
+    assert verify_password("plain-text", "plain-text")
+    assert not verify_password("plain-text", "other")
 
 
 def test_token_revocation_flow(client, admin_token):
@@ -125,21 +125,21 @@ def test_rate_limit_on_token_endpoint(client, app):
     assert statuses[-1] == 429
 
 
-# --- Faz 5: PDF çıktısı ---
+# --- PDF output ---
 
 
 def test_render_quote_pdf_bytes():
     pdf = render_quote_pdf(
         {
             "customer": "Acme",
-            "title": "Pompa teklifi",
+            "title": "Pump quote",
             "quote_id": "q1",
-            "status": "onaylandı",
+            "status": "approved",
             "lines": [
                 {"product_code": "P-001", "quantity": 10, "amount": 100, "currency": "TRY"}
             ],
             "totals": [{"currency": "TRY", "amount": 100}],
-            "terms": {"name": "Standart", "text": "30 gün"},
+            "terms": {"name": "Standard", "text": "30 days"},
             "prepared_by": "admin",
             "approved_by": "admin",
         }
@@ -153,20 +153,20 @@ def test_pdf_export_endpoint_requires_approval_and_returns_pdf(
 ):
     from linevora.model import FakeModelClient
 
-    content = "DN50 santrifüj pompa, 10 adet"
+    content = "DN50 centrifugal pump, 10 pcs"
     expected = {
         "requirements": [
             {
-                "product_type": "santrifüj pompa",
+                "product_type": "centrifugal pump",
                 "features": {"DN": "50"},
                 "quantity": 10,
-                "unit": "adet",
+                "unit": "pcs",
                 "source": {"page": 1, "quote": content},
             }
         ]
     }
     app.state.model_client = FakeModelClient(
-        responses={f"Sayfa 1:\n{content}": json.dumps(expected, ensure_ascii=False)}
+        responses={f"Page 1:\n{content}": json.dumps(expected, ensure_ascii=False)}
     )
     upload = client.post(
         f"/v1/inquiries/{inquiry_id}/versions",
@@ -189,7 +189,7 @@ def test_pdf_export_endpoint_requires_approval_and_returns_pdf(
         json={"lines": [{"requirement_id": req_id, "product_id": product_id}]},
         headers=_auth(admin_token),
     ).json()
-    # Onaysız PDF de engellenir.
+    # An unapproved PDF is blocked too.
     assert (
         client.get(
             f"/v1/quotes/{quote['id']}/export.pdf", headers=_auth(admin_token)

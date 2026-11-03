@@ -1,11 +1,11 @@
-"""Parola karması (PBKDF2-HMAC-SHA256, stdlib).
+"""Password hashing (PBKDF2-HMAC-SHA256, stdlib).
 
-``LINEVORA_USERS`` içindeki parola alanı iki biçim kabul eder:
-- düz metin (yalnızca geliştirme kolaylığı; geriye dönük uyumlu),
-- ``pbkdf2_sha256$<iterasyon>$<salt_hex>$<hash_hex>`` karması (üretim).
+The password field in ``LINEVORA_USERS`` accepts two forms:
+- plain text (development convenience only; backward compatible),
+- a ``pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>`` hash (production).
 
-Karma üretmek için: ``python -c "from linevora.auth.passwords import
-hash_password; print(hash_password('parola'))"``
+To generate a hash: ``python -c "from linevora.auth.passwords import
+hash_password; print(hash_password('password'))"``
 """
 
 from __future__ import annotations

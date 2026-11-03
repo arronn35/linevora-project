@@ -1,7 +1,8 @@
-"""İlan ve teklif belgeleri (dilekçe benzeri düz metin).
+"""Listing and offer documents (petition-style plain text).
 
-Belirtilmemiş alan metne değer olarak yazılmaz; ``Netleştirilecek
-bilgiler`` altında listelenir. Sistem fiyat/teknik/ödeme uydurmaz.
+An unspecified field is not written into the text as a value; it is listed
+under ``Information to be clarified``. The system never invents a price,
+technical detail or payment term.
 """
 
 from __future__ import annotations
@@ -26,17 +27,17 @@ def _fmt_decimal(value: Any) -> str:
 
 def _missing_labels(obj: Any) -> list[str]:
     labels = {
-        "product": "Ürün", "quantity": "Miktar", "unit": "Birim",
-        "delivery_place": "Teslim yeri", "delivery_days": "Teslim süresi",
-        "cap": "Çap", "boy": "Boy/uzunluk", "et_kalinligi": "Et kalınlığı",
-        "unit_price": "Birim fiyat", "currency": "Para birimi",
-        "tax_included": "KDV durumu", "shipping_included": "Nakliye durumu",
-        "shipping_cost": "Nakliye tutarı", "payment_terms": "Ödeme şartları",
+        "product": "Product", "quantity": "Quantity", "unit": "Unit",
+        "delivery_place": "Delivery place", "delivery_days": "Delivery time",
+        "diameter": "Diameter", "length": "Length", "wall_thickness": "Wall thickness",
+        "unit_price": "Unit price", "currency": "Currency",
+        "tax_included": "VAT status", "shipping_included": "Shipping status",
+        "shipping_cost": "Shipping amount", "payment_terms": "Payment terms",
     }
     result: list[str] = []
     for name in _get(obj, "missing_fields", []) or []:
         result.append(labels.get(str(name), str(name)))
-    # Parsed nesnelerindeki sorulardan da eksikleri topla (tekrar etmeden).
+    # Also collect gaps from the questions on parsed objects (without duplicates).
     for question in _get(obj, "missing_questions", []) or []:
         field_name = _get(question, "field")
         if field_name and labels.get(str(field_name)) not in result:
@@ -47,24 +48,24 @@ def _missing_labels(obj: Any) -> list[str]:
 
 
 def render_listing_document(listing: Any) -> str:
-    """İlanı dilekçe benzeri başlıklı metne çevirir."""
+    """Renders the listing as headed, petition-style text."""
     kind = _get(listing, "kind", "demand")
     is_demand = kind == "demand"
-    subject_kind = "Tedarik Talebi" if is_demand else "Satış İlanı"
+    subject_kind = "Procurement Request" if is_demand else "Sales Listing"
     product = _get(listing, "product")
     title = _get(listing, "title") or product or ""
     subject = f"{title} — {subject_kind}".strip(" —") if title else subject_kind
 
-    lines: list[str] = [f"Konu: {subject}", ""]
+    lines: list[str] = [f"Subject: {subject}", ""]
 
-    intro = "Tedarik Talebi" if is_demand else "Satış İlanı"
-    lines.append(f"{intro} aşağıda belirtilmektedir.")
+    intro = "Procurement Request" if is_demand else "Sales Listing"
+    lines.append(f"The {intro.lower()} is set out below.")
     lines.append("")
 
     quantity = _get(listing, "quantity")
     unit = _get(listing, "unit")
     if product:
-        verb = "tedarik edilmek istenmektedir" if is_demand else "satışa sunulmaktadır"
+        verb = "is requested for procurement" if is_demand else "is offered for sale"
         qty_text = ""
         if quantity is not None:
             qty_text = _fmt_decimal(quantity)
@@ -77,50 +78,50 @@ def render_listing_document(listing: Any) -> str:
 
     features = _get(listing, "features", {}) or {}
     feature_labels = {
-        "dn": "DN", "cap_mm": "Çap (mm)", "et_kalinligi_mm": "Et kalınlığı (mm)",
-        "boy": "Boy", "basinc_sinifi": "Basınç sınıfı",
-        "kaplama": "Kaplama", "malzeme": "Malzeme",
+        "dn": "DN", "diameter_mm": "Diameter (mm)", "wall_thickness_mm": "Wall thickness (mm)",
+        "length": "Length", "pressure_class": "Pressure class",
+        "coating": "Coating", "material": "Material",
     }
     for key, value in features.items():
         lines.append(f"{feature_labels.get(str(key), str(key))}: {value}")
 
     delivery_place = _get(listing, "delivery_place")
     if delivery_place:
-        lines.append(f"Teslim yeri: {delivery_place}")
+        lines.append(f"Delivery place: {delivery_place}")
     delivery_days = _get(listing, "delivery_days")
     if delivery_days is not None:
-        lines.append(f"Teslim süresi: {delivery_days} gün")
+        lines.append(f"Delivery time: {delivery_days} days")
 
     lines.append("")
-    lines.append("Tekliflerde belirtilmesi rica olunur:")
+    lines.append("Please state the following in offers:")
     for item in (
-        "Birim fiyat ve para birimi",
-        "KDV durumu (dahil/hariç)",
-        "Teslim süresi",
-        "Nakliye durumu (dahil/hariç)",
-        "Ödeme şartları",
+        "Unit price and currency",
+        "VAT status (included/excluded)",
+        "Delivery time",
+        "Shipping status (included/excluded)",
+        "Payment terms",
     ):
         lines.append(f"- {item}")
 
     missing = _missing_labels(listing)
     if _get(listing, "needs_clarification"):
-        missing.append("Teknik özellikler (tedarikçi önerisi bekleniyor)")
+        missing.append("Technical specifications (awaiting a supplier suggestion)")
     if missing:
         lines.append("")
-        lines.append("Netleştirilecek bilgiler:")
+        lines.append("Information to be clarified:")
         for item in missing:
             lines.append(f"- {item}")
     return "\n".join(lines).strip() + "\n"
 
 
 def render_offer_document(offer: Any, listing: Any = None) -> str:
-    """Teklifi fiyat tablosu + şartlar içeren metne çevirir."""
+    """Renders the offer as a price table plus terms."""
     product = _get(listing, "product") if listing is not None else None
     if not product and _get(offer, "lines"):
         first = _get(offer, "lines")[0]
         product = _get(first, "product")
-    subject = f"{product} — Teklif" if product else "Teklif"
-    lines: list[str] = [f"Konu: {subject}", "", "Fiyat tablosu:"]
+    subject = f"{product} — Offer" if product else "Offer"
+    lines: list[str] = [f"Subject: {subject}", "", "Price table:"]
 
     offer_lines = _get(offer, "lines", []) or []
     total: Decimal | None = None
@@ -147,53 +148,53 @@ def render_offer_document(offer: Any, listing: Any = None) -> str:
             if parts:
                 lines.append("- " + " ".join(parts))
     else:
-        lines.append("- (kalem belirtilmemiştir)")
+        lines.append("- (no line specified)")
 
     shipping_included = _get(offer, "shipping_included")
     shipping_cost = _get(offer, "shipping_cost")
     if total is not None and shipping_included is False and shipping_cost is not None:
         total += shipping_cost if isinstance(shipping_cost, Decimal) else Decimal(str(shipping_cost))
     if total is not None:
-        lines.append(f"Toplam: {_fmt_decimal(total)} {currency or ''}".strip())
+        lines.append(f"Total: {_fmt_decimal(total)} {currency or ''}".strip())
 
     lines.append("")
-    lines.append("Şartlar:")
+    lines.append("Terms:")
     tax_included = _get(offer, "tax_included")
     if tax_included is True:
-        lines.append("- KDV: dahil")
+        lines.append("- VAT: included")
     elif tax_included is False:
-        lines.append("- KDV: hariç")
+        lines.append("- VAT: excluded")
     if shipping_included is True:
-        lines.append("- Nakliye: dahil")
+        lines.append("- Shipping: included")
     elif shipping_included is False:
         if shipping_cost is not None:
-            lines.append(f"- Nakliye: hariç ({_fmt_decimal(shipping_cost)} {currency or ''})".strip())
+            lines.append(f"- Shipping: excluded ({_fmt_decimal(shipping_cost)} {currency or ''})".strip())
         else:
-            lines.append("- Nakliye: hariç")
+            lines.append("- Shipping: excluded")
     delivery_days = _get(offer, "delivery_days")
     if delivery_days is not None:
-        lines.append(f"- Teslim süresi: {delivery_days} gün")
+        lines.append(f"- Delivery time: {delivery_days} days")
     payment_terms = _get(offer, "payment_terms")
     if payment_terms:
-        lines.append(f"- Ödeme: {payment_terms}")
+        lines.append(f"- Payment: {payment_terms}")
     if _get(offer, "conditional"):
-        lines.append("- Bu teklif şartlıdır.")
+        lines.append("- This offer is conditional.")
     note = _get(offer, "note")
     if note:
-        lines.append(f"- Not: {note}")
-    if len(lines) == 0 or lines[-1] == "Şartlar:":
-        lines.append("- (şart belirtilmemiştir)")
+        lines.append(f"- Note: {note}")
+    if len(lines) == 0 or lines[-1] == "Terms:":
+        lines.append("- (no terms specified)")
 
     missing = _missing_labels(offer)
     if missing:
         lines.append("")
-        lines.append("Netleştirilecek bilgiler:")
+        lines.append("Information to be clarified:")
         for item in missing:
             lines.append(f"- {item}")
     return "\n".join(lines).strip() + "\n"
 
 
-# Takma adlar.
+# Aliases.
 generate_listing_document = render_listing_document
 generate_offer_document = render_offer_document
 listing_document = render_listing_document

@@ -1,4 +1,4 @@
-"""Rol modeli (veri modelindeki Kullanıcı.roll karşılığı)."""
+"""Role model (the User.roles counterpart in the data model)."""
 
 from enum import Enum
 

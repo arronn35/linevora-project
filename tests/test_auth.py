@@ -1,4 +1,4 @@
-"""Belirteç üretimi ve doğrulama."""
+"""Token issuing and verification."""
 
 from linevora.auth.tokens import issue_token
 from linevora.config import get_settings
@@ -6,25 +6,25 @@ from linevora.config import get_settings
 
 def test_token_issue_and_me(client):
     response = client.post(
-        "/v1/auth/token", json={"username": "uzman", "password": "uzman123"}
+        "/v1/auth/token", json={"username": "specialist", "password": "specialist123"}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
     me = client.get("/v1/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
-    assert me.json() == {"username": "uzman", "roles": ["specialist"]}
+    assert me.json() == {"username": "specialist", "roles": ["specialist"]}
 
 
 def test_token_wrong_password(client):
     response = client.post(
-        "/v1/auth/token", json={"username": "uzman", "password": "yanlis"}
+        "/v1/auth/token", json={"username": "specialist", "password": "wrong"}
     )
     assert response.status_code == 401
 
 
 def test_token_unknown_user(client):
     response = client.post(
-        "/v1/auth/token", json={"username": "kimse", "password": "ne"}
+        "/v1/auth/token", json={"username": "nobody", "password": "whatever"}
     )
     assert response.status_code == 401
 

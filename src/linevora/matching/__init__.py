@@ -1,4 +1,4 @@
-"""Gereksinim çıkarma ve katalog eşleştirme."""
+"""Requirement extraction and catalog matching."""
 
 from .extractor import extract_requirements
 from .matcher import LexicalMatcher, ScoredProduct

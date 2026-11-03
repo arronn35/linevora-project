@@ -1,4 +1,4 @@
-/* Pazar yeri — panel kurumsal sistemi içinde: border disiplini, 4/8 aralığı, sans. */
+/* Marketplace — inside the panel corporate system: border discipline, 4/8 spacing, sans. */
 .mp-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;margin-bottom:14px}
 .mp-filters label,.mp-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:500}
 .mp-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}

@@ -1,1 +1,1 @@
-"""HTTP API katmanı."""
+"""HTTP API layer."""

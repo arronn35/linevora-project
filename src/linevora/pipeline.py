@@ -1,8 +1,8 @@
-"""Belge işleme hattı servisi (main.py'den ayrıştırıldı).
+"""Document processing pipeline service (split out of main.py).
 
-Sürüm işleme: gereksinim çıkarma → eşleştirme → alternatif → eksik.
-Atomik değişim: tüm sonuçlar önce hesaplanır, tek noktada eskiyle
-değiştirilir; hata hâlinde önceki sonuçlar korunur (P1.2).
+Version processing: requirement extraction → matching → alternatives → gaps.
+Atomic swap: all results are computed first and swapped in at a single
+point; on error the previous results are preserved.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class ProcessVersionService:
         versions = self._inquiries.list_versions(inquiry_id)
         version = next((v for v in versions if v.version_no == version_no), None)
         if version is None:
-            raise ValueError("sürüm yok")
+            raise ValueError("version not found")
         client = self._get_client()
         if not isinstance(client, MeteringClient):
             client = MeteringClient(client)

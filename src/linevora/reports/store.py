@@ -1,6 +1,6 @@
-"""Eksik bilgi ve alternatif depoları. MVP gerçeklemesi bellek içidir;
-kalıcı gerçekleme Adım 8'de yönetilen veritabanıyla bu arayüzlerin
-arkasına geçer.
+"""Gap and alternative stores. The MVP implementation is in-memory; the
+persistent implementation moves behind these interfaces with a managed
+database.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class GapStore(Protocol):
         requirement_id: str,
         field: str,
         question: str,
-        severity: str = "zorunlu",
+        severity: str = "mandatory",
     ) -> InformationGap:
         ...
 
@@ -72,7 +72,7 @@ class InMemoryGapStore:
         requirement_id: str,
         field: str,
         question: str,
-        severity: str = "zorunlu",
+        severity: str = "mandatory",
     ) -> InformationGap:
         with self._lock:
             gap = InformationGap(
@@ -96,8 +96,8 @@ class InMemoryGapStore:
     def update_status(self, gap_id: str, status: str, answer: str = "") -> InformationGap:
         from dataclasses import replace
 
-        if status not in ("açık", "yanıtlandı", "vazgeçildi"):
-            raise ValueError(f"geçersiz eksik durumu: {status}")
+        if status not in ("open", "answered", "waived"):
+            raise ValueError(f"invalid gap status: {status}")
         with self._lock:
             updated = replace(self._items[gap_id], status=status, answer=answer)
             self._items[gap_id] = updated
@@ -160,8 +160,8 @@ class InMemoryAlternativeStore:
     def update_status(self, alternative_id: str, status: str) -> Alternative:
         from dataclasses import replace
 
-        if status not in ("bekliyor", "onaylandı", "reddedildi"):
-            raise ValueError(f"geçersiz alternatif durumu: {status}")
+        if status not in ("pending", "approved", "rejected"):
+            raise ValueError(f"invalid alternative status: {status}")
         with self._lock:
             updated = replace(self._items[alternative_id], status=status)
             self._items[alternative_id] = updated
@@ -198,5 +198,5 @@ class InMemoryAlternativeStore:
                         ComparisonRow(**row) for row in item.get("comparison", [])
                     ),
                     reasons=tuple(item.get("reasons", [])),
-                    status=item.get("status", "bekliyor"),
+                    status=item.get("status", "pending"),
                 )

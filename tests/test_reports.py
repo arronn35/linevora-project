@@ -1,4 +1,4 @@
-"""Eksik bilgi, sürüm farkı ve alternatif raporları (Adım 6 kabulü)."""
+"""Missing information, version diff and alternative reports."""
 
 import json
 
@@ -27,7 +27,7 @@ def _process(client, token, inquiry_id, version_no):
 def _script(app, scripts):
     app.state.model_client = FakeModelClient(
         responses={
-            f"Sayfa 1:\n{content}": json.dumps(expected, ensure_ascii=False)
+            f"Page 1:\n{content}": json.dumps(expected, ensure_ascii=False)
             for content, expected in scripts
         }
     )
@@ -40,10 +40,10 @@ def _requirement(product_type, quote, **fields):
 
 
 def test_gaps_for_missing_fields(client, app, admin_token, inquiry_id):
-    content = "santrifüj pompa"
+    content = "centrifugal pump"
     _script(
         app,
-        [(content, {"requirements": [_requirement("santrifüj pompa", content)]})],
+        [(content, {"requirements": [_requirement("centrifugal pump", content)]})],
     )
     assert _upload(client, admin_token, inquiry_id, content).status_code == 201
     process = _process(client, admin_token, inquiry_id, 1)
@@ -56,15 +56,15 @@ def test_gaps_for_missing_fields(client, app, admin_token, inquiry_id):
     assert gaps.status_code == 200
     by_field = {gap["field"]: gap for gap in gaps.json()["gaps"]}
     assert set(by_field) == {"quantity", "unit", "features"}
-    assert by_field["quantity"]["severity"] == "zorunlu"
-    assert by_field["unit"]["severity"] == "zorunlu"
-    assert by_field["features"]["severity"] == "bilgi"
-    assert all(gap["status"] == "açık" for gap in by_field.values())
+    assert by_field["quantity"]["severity"] == "mandatory"
+    assert by_field["unit"]["severity"] == "mandatory"
+    assert by_field["features"]["severity"] == "info"
+    assert all(gap["status"] == "open" for gap in by_field.values())
     assert all(gap["question"] for gap in by_field.values())
 
 
 def test_exact_match_produces_no_alternatives(client, app, admin_token, inquiry_id):
-    content = "DN50 santrifüj pompa, 10 adet"
+    content = "DN50 centrifugal pump, 10 pcs"
     _script(
         app,
         [
@@ -73,11 +73,11 @@ def test_exact_match_produces_no_alternatives(client, app, admin_token, inquiry_
                 {
                     "requirements": [
                         _requirement(
-                            "santrifüj pompa",
+                            "centrifugal pump",
                             content,
                             features={"DN": "50"},
                             quantity=10,
-                            unit="adet",
+                            unit="pcs",
                         )
                     ]
                 },
@@ -96,7 +96,7 @@ def test_exact_match_produces_no_alternatives(client, app, admin_token, inquiry_
 def test_weak_match_produces_alternatives_with_comparison(
     client, app, admin_token, inquiry_id
 ):
-    content = "kompresör, 5 adet"
+    content = "compressor, 5 pcs"
     _script(
         app,
         [
@@ -105,11 +105,11 @@ def test_weak_match_produces_alternatives_with_comparison(
                 {
                     "requirements": [
                         _requirement(
-                            "kompresör",
+                            "compressor",
                             content,
                             features={"DN": "50"},
                             quantity=5,
-                            unit="adet",
+                            unit="pcs",
                         )
                     ]
                 },
@@ -128,19 +128,19 @@ def test_weak_match_produces_alternatives_with_comparison(
     assert item["product"]["code"] == "P-001"
     assert item["score"] == 0.5
     rows = {row["criterion"]: row for row in item["comparison"]}
-    assert rows["ürün adı"]["match"] is False
-    assert rows["özellik:DN"] == {
-        "criterion": "özellik:DN",
+    assert rows["product name"]["match"] is False
+    assert rows["feature:DN"] == {
+        "criterion": "feature:DN",
         "wanted": "50",
         "offered": "50",
         "match": True,
     }
-    assert rows["birim"]["match"] is True
+    assert rows["unit"]["match"] is True
 
 
 def test_diff_reports_changes(client, app, admin_token, inquiry_id):
-    first = "DN50 santrifüj pompa, 10 adet"
-    second = "DN50 santrifüj pompa, 12 adet ve 4 adet DN80 sürgülü vana"
+    first = "DN50 centrifugal pump, 10 pcs"
+    second = "DN50 centrifugal pump, 12 pcs and 4 pcs DN80 gate valve"
     _script(
         app,
         [
@@ -149,11 +149,11 @@ def test_diff_reports_changes(client, app, admin_token, inquiry_id):
                 {
                     "requirements": [
                         _requirement(
-                            "santrifüj pompa",
+                            "centrifugal pump",
                             first,
                             features={"DN": "50"},
                             quantity=10,
-                            unit="adet",
+                            unit="pcs",
                         )
                     ]
                 },
@@ -163,18 +163,18 @@ def test_diff_reports_changes(client, app, admin_token, inquiry_id):
                 {
                     "requirements": [
                         _requirement(
-                            "santrifüj pompa",
+                            "centrifugal pump",
                             second,
                             features={"DN": "50"},
                             quantity=12,
-                            unit="adet",
+                            unit="pcs",
                         ),
                         _requirement(
-                            "sürgülü vana",
+                            "gate valve",
                             second,
                             features={"DN": "80"},
                             quantity=4,
-                            unit="adet",
+                            unit="pcs",
                         ),
                     ]
                 },
@@ -194,15 +194,15 @@ def test_diff_reports_changes(client, app, admin_token, inquiry_id):
     assert body["to_version"] == 2
     assert body["changes"] == [
         {
-            "type": "değişti",
-            "product_type": "santrifüj pompa",
-            "field": "miktar",
+            "type": "changed",
+            "product_type": "centrifugal pump",
+            "field": "quantity",
             "old": 10,
             "new": 12,
         },
         {
-            "type": "eklendi",
-            "product_type": "sürgülü vana",
+            "type": "added",
+            "product_type": "gate valve",
             "field": None,
             "old": None,
             "new": None,
@@ -220,7 +220,7 @@ def test_diff_unknown_version_404(client, admin_token, inquiry_id):
 def test_viewer_can_read_reports(client, viewer_token, inquiry_id):
     headers = _auth(viewer_token)
     gaps = client.get(f"/v1/inquiries/{inquiry_id}/versions/1/gaps", headers=headers)
-    assert gaps.status_code == 404  # sürüm henüz yok
+    assert gaps.status_code == 404  # no version yet
     alternatives = client.get(
         f"/v1/inquiries/{inquiry_id}/versions/1/alternatives", headers=headers
     )
@@ -230,7 +230,7 @@ def test_viewer_can_read_reports(client, viewer_token, inquiry_id):
 def test_viewer_reads_empty_reports_after_upload(
     client, app, admin_token, viewer_token, inquiry_id
 ):
-    content = "DN50 santrifüj pompa, 10 adet"
+    content = "DN50 centrifugal pump, 10 pcs"
     _script(
         app,
         [
@@ -239,11 +239,11 @@ def test_viewer_reads_empty_reports_after_upload(
                 {
                     "requirements": [
                         _requirement(
-                            "santrifüj pompa",
+                            "centrifugal pump",
                             content,
                             features={"DN": "50"},
                             quantity=10,
-                            unit="adet",
+                            unit="pcs",
                         )
                     ]
                 },
@@ -261,7 +261,7 @@ def test_viewer_reads_empty_reports_after_upload(
 
 
 def test_reprocess_replaces_gaps(client, app, admin_token, inquiry_id):
-    content = "santrifüj pompa, 10 adet"
+    content = "centrifugal pump, 10 pcs"
     _script(
         app,
         [
@@ -270,7 +270,7 @@ def test_reprocess_replaces_gaps(client, app, admin_token, inquiry_id):
                 {
                     "requirements": [
                         _requirement(
-                            "santrifüj pompa",
+                            "centrifugal pump",
                             content,
                             features={"DN": "50"},
                             quantity=10,

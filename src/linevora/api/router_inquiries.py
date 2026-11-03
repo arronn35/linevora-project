@@ -1,4 +1,4 @@
-"""Adım 3 API yüzeyleri: talep açma, sürüm yükleme, sürüm listeleme."""
+"""Inquiry API surfaces: opening inquiries, uploading and listing versions."""
 
 from __future__ import annotations
 
@@ -92,11 +92,11 @@ async def add_version(
         if total > MAX_UPLOAD_BYTES:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail="dosya çok büyük (en fazla 25 MB)",
+                detail="file too large (at most 25 MB)",
             )
         chunks.append(chunk)
     content = b"".join(chunks)
-    filename = file.filename or "dosya"
+    filename = file.filename or "file"
     try:
         document = extract_text(filename, content)
     except UnsupportedFormatError as exc:
@@ -106,7 +106,7 @@ async def add_version(
     try:
         inquiries.get_inquiry(inquiry_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="talep yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inquiry not found")
     stored = blobs.put(filename, content)
     version = inquiries.add_version(inquiry_id, stored, document.pages)
     audit.append(
@@ -132,7 +132,7 @@ def list_versions(
             raise KeyError(inquiry_id)
         versions = inquiries.list_versions(inquiry_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="talep yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inquiry not found")
     return {"versions": [_version_payload(version) for version in versions]}
 
 
@@ -169,7 +169,7 @@ def delete_inquiry(
     request: Request,
     user: dict = Depends(require_roles(Role.ADMIN)),
 ) -> dict[str, object]:
-    """KVKK silme: talep ve türev kayıtlar silinir, denetime iz bırakılır."""
+    """Erasure: the inquiry and derived records are deleted; a trace is left in the audit log."""
     inquiries: InquiryStore = request.app.state.inquiry_store
     audit: AuditStore = request.app.state.audit_store
     try:
@@ -178,7 +178,7 @@ def delete_inquiry(
             raise KeyError(inquiry_id)
         versions = inquiries.list_versions(inquiry_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="talep yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inquiry not found")
     requirements = request.app.state.requirement_store
     for version in versions:
         removed = requirements.delete_for_version(version.id)
@@ -186,5 +186,5 @@ def delete_inquiry(
         request.app.state.alternative_store.delete_for_requirements(removed)
         request.app.state.gap_store.delete_for_version(version.id)
     inquiries.delete_inquiry(inquiry_id)
-    audit.append(actor=user["subject"], action="inquiry.erasure", target=f"inquiry:{inquiry_id}", detail="KVKK silme")
+    audit.append(actor=user["subject"], action="inquiry.erasure", target=f"inquiry:{inquiry_id}", detail="erasure")
     return {"deleted": True, "id": inquiry_id}

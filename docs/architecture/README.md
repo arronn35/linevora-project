@@ -1,69 +1,69 @@
-# Linevora Teknik Mimari — Genel Bakış
+# Linevora Technical Architecture — Overview
 
-Durum: tasarım belgesi. Teknoloji ürünü seçimi henüz yapılmadı; Adım 2 ve sonrasına geçmeden önce yığın kararı gerekir (bkz. "Seçim Ölçütleri").
+Status: design document. The technology product has not been selected yet; a stack decision is required before moving to the implementation steps (see "Selection Criteria").
 
-Kaynak: ürün betimlemesi (inquiry-to-quote akışı, kaynak gösterilebilirlik, ekip onayı, onaylı fiyat/şartlar) ve mimari plan.
+Source: the product description (the inquiry-to-quote flow, source showability, team approval, approved prices/terms) and the architectural plan.
 
-## Mimari Yaklaşım
+## Architectural Approach
 
-Sınırları net bir modüler bütün: tek dağıtım birimi, keskin iç modül sınırları. Belge işleme asenkron hat üzerinden; dil modeli çağrıları değiştirilebilir bir soyutlama arkasında. Gerekçe: küçük ekip ve doğrulanmamış ürün aşamasında dağıtık mimarinin işletme yükü değer üretmez; sınırlar doğru çizilirse parçalar sonradan bağımsızlaştırılabilir.
+A modular whole with clear boundaries: a single deployment unit with sharp internal module boundaries. Document processing runs over an async pipeline; language-model calls sit behind a replaceable abstraction. Rationale: for a small team at an unvalidated product stage, the operating cost of a distributed architecture produces no value; when the boundaries are drawn correctly, the parts can be made independent later.
 
-## Bileşenler
+## Components
 
-1. **Ekip web arayüzü.** Sorumluluk: talebi görüntüleme, eşleşme inceleme/düzeltme, raporlar, teklif onayı. Arayüz: yalnızca uygulama arayüz katmanıyla konuşur; önerinin dayandığı kaynak bölümü her ekranda tek tıkla görülür.
-2. **Uygulama arayüz katmanı.** Sorumluluk: tek giriş kapısı; kimlik, yetki, girdi doğrulama, denetim kaydı. Arayüz: istemcilere ve iç modüllere HTTP üzerinden hizmet verir; iş mantığı barındırmaz.
-3. **Belge işleme hattı.** Sorumluluk: dosya alımı, metin çıkarma (sayfa/bölüm yapısı korunur), gereksinim çıkarma, eşleştirme, rapor üretimi. Arayüz: kuyruğa iş yazar, çalışanlar adımları işletir; her adımın durumu, hatası ve yeniden denemesi izlenir.
-4. **Dil modeli soyutlaması.** Sorumluluk: tüm model çağrılarını tek dahili arayüzden yapma, çıktıları şemayla doğrulama. Arayüz: sağlayıcı değişimi arayüzü etkilemez; şemaya uymayan yanıt hatta girmez; her çıkarım kaynak işaretçisi taşır.
-5. **İş kayıtları veritabanı.** Sorumluluk: talep, sürüm, gereksinim, eşleşme, onay, teklif ve denetim kayıtları. Arayüz: modüller yalnızca kendi aggregatesine yazar; sürüm ve denetim kayıtları silinemez, yalnızca eklenir.
-6. **Anlamsal arama dizini.** Sorumluluk: farklı terminolojiyle yazılmış taleplere katalog adayları üretme. Arayüz: aday listesi + skor döndürür; nihai kararı vermez; skor eşikleri yapılandırılabilir.
-7. **Dosya deposu.** Sorumluluk: özgün talep dosyaları ve üretilen teklif belgelerinin değişmez saklanması. Arayüz: içerik adresiyle yazma/okuma; veritabanındaki kayıtlar dosyalara işaret eder.
-8. **Katalog ve fiyat/şart modülü.** Sorumluluk: ürün kayıtları, eşanlamlılar, özellikler; sürümlü fiyat ve şartlar. Arayüz: teklif motoruna yalnızca yürürlükteki sürümü verir; eski teklifler üretildikleri sürüme bağlı kalır.
-9. **Teklif motoru ve onay akışı.** Sorumluluk: onaylı girdilerden taslak üretimi, düzeltme/onay adımları, belge çıktısı. Arayüz: onay kaydı olmadan çıktı üretmez; bu kural veri katmanında denetlenir.
-10. **Gözlemlenebilirlik.** Sorumluluk: kayıt, ölçüm, istek izleme, model çağrı adedi/maliyet takibi, hat adım süreleri. Arayüz: pilot metrikleri (teklif süresi, düzeltme oranı) buradan beslenir.
-11. **Değerlendirme seti ve kapısı.** Sorumluluk: tarihsel taleplerden sabit test seti; eşleştirme değişiklikleri sette ölçülmeden yayımlanmaz. Arayüz: tekrar çalıştırılabilir ölçüm; eşik altında sonuç yayımlamayı durdurur.
-12. **Güvenlik temeli.** Sorumluluk: aktarımda ve saklamada şifreleme, rol tabanlı yetki, yedekleme ve geri yükleme, saklama süresi politikası.
+1. **Team web interface.** Responsibility: viewing inquiries, reviewing/correcting matches, reports, quote approval. Interface: talks only to the application API layer; the source section a suggestion relies on is visible in one click on every screen.
+2. **Application API layer.** Responsibility: the single entry point; identity, authorization, input validation, audit logging. Interface: serves clients and internal modules over HTTP; contains no business logic.
+3. **Document processing pipeline.** Responsibility: file intake, text extraction (page/section structure preserved), requirement extraction, matching, report generation. Interface: writes jobs to a queue, workers run the steps; every step's status, error and retry are tracked.
+4. **Language-model abstraction.** Responsibility: making all model calls through a single internal interface, validating outputs against a schema. Interface: changing the provider does not affect the interface; a response that does not fit the schema never enters the pipeline; every extraction carries a source pointer.
+5. **Business-records database.** Responsibility: inquiry, version, requirement, match, approval, quote and audit records. Interface: modules write only to their own aggregate; version and audit records cannot be deleted, only appended.
+6. **Semantic search index.** Responsibility: producing catalog candidates for inquiries written with different terminology. Interface: returns a candidate list plus scores; it does not make the final decision; score thresholds are configurable.
+7. **File store.** Responsibility: immutable storage of original inquiry files and generated quote documents. Interface: write/read by content address; records in the database point to files.
+8. **Catalog and price/terms module.** Responsibility: product records, synonyms, features; versioned prices and terms. Interface: gives the quote engine only the active version; older quotes stay bound to the version they were produced with.
+9. **Quote engine and approval flow.** Responsibility: draft generation from approved inputs, correction/approval steps, document output. Interface: produces no output without an approval record; this rule is enforced in the data layer.
+10. **Observability.** Responsibility: logging, metrics, request tracing, model call count/cost tracking, step durations. Interface: pilot metrics (quote time, correction rate) are fed from here.
+11. **Evaluation set and gate.** Responsibility: a fixed test set built from historical inquiries; matching changes are not shipped before being measured on the set. Interface: a repeatable measurement; a result below the threshold stops the release.
+12. **Security foundation.** Responsibility: encryption in transit and at rest, role-based authorization, backup and restore, retention policy.
 
-## Veri Akışı (uçtan uca)
+## Data Flow (end to end)
 
-1. Ekip talep dosyasını/metinini yükler → dosya deposuna yazılır, iş kayıtlarına talep + sürüm açılır.
-2. İşleme hattı metni çıkarır, gereksinimleri üretir; her gereksinim kaynak işaretçisi taşır.
-3. Anlamsal dizin adayları verir; eşleşme önerileri skor, gerekçe ve kaynakla kaydedilir.
-4. Eksik bilgi listesi, sürüm farkı (varsa) ve alternatif önerileri üretilir.
-5. Ekip inceler, düzeltir, onaylar; tüm kararlar denetim kaydına yazılır.
-6. Teklif motoru yürürlükteki fiyat/şart sürümüyle taslak üretir; onay sonrası belge çıktısı alınır.
+1. The team uploads the inquiry file/text → it is written to the file store, and an inquiry plus version are opened in the business records.
+2. The processing pipeline extracts the text and produces requirements; every requirement carries a source pointer.
+3. The semantic index provides candidates; match suggestions are recorded with a score, a rationale and a source.
+4. The missing-information list, the version diff (if any) and alternative suggestions are produced.
+5. The team reviews, corrects and approves; all decisions are written to the audit log.
+6. The quote engine produces a draft with the active price/terms version; after approval, the document output is taken.
 
-## Değişmez Kurallar
+## Non-Negotiable Rules
 
-1. Kaynağı olmayan öneri kullanıcıya gösterilmez.
-2. Ekip onayı olmadan teklif dışa aktarılmaz.
-3. Teklif yalnızca sürümlü onaylı fiyat/şart kullanır.
+1. A suggestion without a source is not shown to the user.
+2. No quote is exported without team approval.
+3. A quote uses only versioned, approved prices/terms.
 
-Denetim noktaları `data-model.md` dosyasındadır.
+The enforcement points are in `data-model.md`.
 
-## Reddedilen Alternatifler
+## Rejected Alternatives
 
-- Başlangıçta dağıtık servislere bölünme: işletme yükü, erken aşamada gereksiz.
-- Model sağlayıcısına doğrudan bağımlı kod: kilitlenme ve maliyet riski.
-- Belge işlemeyi eşzamanlı yapma: uzun beklemeler, hata toleransı yokluğu.
+- Splitting into distributed services at the start: operating cost, unnecessary at an early stage.
+- Code directly dependent on a model provider: lock-in and cost risk.
+- Processing documents synchronously: long waits, no fault tolerance.
 
-## Teknoloji Seçim Ölçütleri (ürün adı yok)
+## Technology Selection Criteria (no product names)
 
-- Uygulama dili/çatısı: ekibin hakimiyeti, belge işleme ve model entegrasyonu ekosistemi, işe alım havuzu.
-- İlişkisel veritabanı: işlem bütünlüğü, sürüm/denetim desenlerine uygunluk, yedekleme kolaylığı.
-- Anlamsal dizin: eşik ayarlanabilirliği, yeniden indeksleme maliyeti, barındırma yükü.
-- Kuyruk/çalışan: yeniden deneme ve görünürlük, işletme yükü.
-- Dosya deposu: değişmezlik, erişim denetimi, maliyet.
-- Model sağlama: doğruluk, çağrı maliyeti, veri yerleşimi kısıtı.
-- Barındırma: işletme yükü en düşük olandan başlanır.
+- Application language/framework: the team's fluency, the document-processing and model-integration ecosystem, the hiring pool.
+- Relational database: transactional integrity, fit with version/audit patterns, backup ease.
+- Semantic index: threshold adjustability, reindexing cost, hosting cost.
+- Queue/worker: retries and visibility, operating cost.
+- File store: immutability, access control, cost.
+- Model provision: accuracy, call cost, data-residency constraints.
+- Hosting: start from the lowest operating cost.
 
-## Adım Durumu
+## Step Status
 
-- [x] Adım 1: veri modeli ve değişmez kurallar (`data-model.md`)
-- [x] Adım 2: API iskeleti + kimlik ve yetki (`src/linevora/api`, `auth`, `audit`)
-- [x] Adım 3: dosya deposu ve içe aktarma (`files`, `ingest`, `inquiries`)
-- [x] Adım 4: model soyutlaması + eval seti (`model`, `eval`)
-- [x] Adım 5: işleme hattı ve eşleştirme (`jobs`, `matching`, `catalog`)
-- [x] Adım 6: eksik/fark/alternatif raporları (`reports`)
-- [x] Adım 7: teklif motoru ve onay akışı (`quotes`)
-- [x] Adım 8: gözlemlenebilirlik ve güvenlik sertleştirme (`observability`, `docs/operations.md`)
-- [x] Adım 9: kalıcılık (SQLite), gerçek model bağdaştırıcısı, anlamsal eşleştirme, güvenlik sertleştirme (hash/rate-limit/iptal), PDF çıktısı (`persistence`, `model/client.py`, `matching/vector_matcher.py`, `auth/passwords.py`, `quotes/pdf.py`)
+- [x] Step 1: data model and non-negotiable rules (`data-model.md`)
+- [x] Step 2: API skeleton + identity and authorization (`src/linevora/api`, `auth`, `audit`)
+- [x] Step 3: file store and import (`files`, `ingest`, `inquiries`)
+- [x] Step 4: model abstraction + eval set (`model`, `eval`)
+- [x] Step 5: processing pipeline and matching (`jobs`, `matching`, `catalog`)
+- [x] Step 6: gap/diff/alternative reports (`reports`)
+- [x] Step 7: quote engine and approval flow (`quotes`)
+- [x] Step 8: observability and security hardening (`observability`, `docs/operations.md`)
+- [x] Step 9: persistence (SQLite), a real model adapter, semantic matching, security hardening (hash/rate-limit/revocation), PDF output (`persistence`, `model/client.py`, `matching/vector_matcher.py`, `auth/passwords.py`, `quotes/pdf.py`)

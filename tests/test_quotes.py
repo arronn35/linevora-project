@@ -1,4 +1,4 @@
-"""Teklif motoru ve onay akışı (Adım 7 kabulü)."""
+"""Quote engine and approval flow."""
 
 import json
 
@@ -6,7 +6,7 @@ import pytest
 
 from linevora.model import FakeModelClient
 
-CONTENT = "DN50 santrifüj pompa, 10 adet"
+CONTENT = "DN50 centrifugal pump, 10 pcs"
 
 
 def _auth(token):
@@ -15,7 +15,7 @@ def _auth(token):
 
 def _specialist_token(client):
     response = client.post(
-        "/v1/auth/token", json={"username": "uzman", "password": "uzman123"}
+        "/v1/auth/token", json={"username": "specialist", "password": "specialist123"}
     )
     assert response.status_code == 200
     return response.json()["access_token"]
@@ -26,16 +26,16 @@ def prepared(client, app, admin_token, inquiry_id):
     expected = {
         "requirements": [
             {
-                "product_type": "santrifüj pompa",
+                "product_type": "centrifugal pump",
                 "features": {"DN": "50"},
                 "quantity": 10,
-                "unit": "adet",
+                "unit": "pcs",
                 "source": {"page": 1, "quote": CONTENT},
             }
         ]
     }
     app.state.model_client = FakeModelClient(
-        responses={f"Sayfa 1:\n{CONTENT}": json.dumps(expected, ensure_ascii=False)}
+        responses={f"Page 1:\n{CONTENT}": json.dumps(expected, ensure_ascii=False)}
     )
     upload = client.post(
         f"/v1/inquiries/{inquiry_id}/versions",
@@ -76,24 +76,24 @@ def test_quote_happy_path(client, admin_token, prepared):
     build = _build(client, admin_token, prepared)
     assert build.status_code == 201
     quote = build.json()
-    assert quote["status"] == "taslak"
+    assert quote["status"] == "draft"
     assert quote["lines"][0]["unit_price"] == 85000.0
     assert quote["lines"][0]["amount"] == 850000.0
     assert quote["totals"] == [{"currency": "TRY", "amount": 850000.0}]
     quote_id = quote["id"]
     submit = client.post(f"/v1/quotes/{quote_id}/submit", headers=_auth(admin_token))
-    assert submit.json()["status"] == "incelemede"
+    assert submit.json()["status"] == "in_review"
     approve = client.post(f"/v1/quotes/{quote_id}/approve", headers=_auth(admin_token))
-    assert approve.json()["status"] == "onaylandı"
+    assert approve.json()["status"] == "approved"
     assert approve.json()["approved_by"] == "admin"
     export = client.get(f"/v1/quotes/{quote_id}/export", headers=_auth(admin_token))
     assert export.status_code == 200
     document = export.json()
-    assert document["status"] == "dışa aktarıldı"
+    assert document["status"] == "exported"
     assert document["customer"] == "Acme"
     assert document["lines"][0]["product_code"] == "P-001"
     assert document["totals"] == [{"currency": "TRY", "amount": 850000.0}]
-    assert "30 gün" in document["terms"]["text"]
+    assert "30 days" in document["terms"]["text"]
     assert document["prepared_by"] == "admin"
     assert document["approved_by"] == "admin"
     re_export = client.get(f"/v1/quotes/{quote_id}/export", headers=_auth(admin_token))
@@ -127,7 +127,7 @@ def test_approve_requires_admin_and_return_reopens(client, admin_token, prepared
         == 403
     )
     returned = client.post(f"/v1/quotes/{quote_id}/return", headers=_auth(admin_token))
-    assert returned.json()["status"] == "taslak"
+    assert returned.json()["status"] == "draft"
     edited = client.put(
         f"/v1/quotes/{quote_id}/lines",
         json={
@@ -144,7 +144,7 @@ def test_approve_requires_admin_and_return_reopens(client, admin_token, prepared
     assert edited.json()["lines"][0]["amount"] == 425000.0
     client.post(f"/v1/quotes/{quote_id}/submit", headers=_auth(specialist))
     approved = client.post(f"/v1/quotes/{quote_id}/approve", headers=_auth(admin_token))
-    assert approved.json()["status"] == "onaylandı"
+    assert approved.json()["status"] == "approved"
 
 
 def test_invalid_transitions_rejected(client, admin_token, prepared):
@@ -183,7 +183,7 @@ def test_price_pinning_across_versions(client, admin_token, prepared):
     )
     assert created.status_code == 201
     activated = client.post(f"/v1/prices/{created.json()['id']}/activate", headers=headers)
-    assert activated.json()["status"] == "yürürlükte"
+    assert activated.json()["status"] == "active"
     after = client.get(f"/v1/quotes/{first_id}/export", headers=headers).json()
     assert after["lines"][0]["unit_price"] == 85000.0
     second_id = _build(client, admin_token, prepared).json()["id"]
@@ -197,28 +197,28 @@ def test_terms_pinning_across_versions(client, admin_token, prepared):
     client.post(f"/v1/quotes/{first_id}/submit", headers=headers)
     client.post(f"/v1/quotes/{first_id}/approve", headers=headers)
     created = client.post(
-        "/v1/terms", json={"name": "Yeni Şartlar", "text": "Peşin ödeme."}, headers=headers
+        "/v1/terms", json={"name": "New Terms", "text": "Cash in advance."}, headers=headers
     )
     client.post(f"/v1/terms/{created.json()['id']}/activate", headers=headers)
     first = client.get(f"/v1/quotes/{first_id}/export", headers=headers).json()
-    assert "30 gün" in first["terms"]["text"]
+    assert "30 days" in first["terms"]["text"]
     second_id = _build(client, admin_token, prepared).json()["id"]
     client.post(f"/v1/quotes/{second_id}/submit", headers=headers)
     client.post(f"/v1/quotes/{second_id}/approve", headers=headers)
     second = client.get(f"/v1/quotes/{second_id}/export", headers=headers).json()
-    assert second["terms"]["text"] == "Peşin ödeme."
+    assert second["terms"]["text"] == "Cash in advance."
 
 
 def test_build_requires_effective_price(client, admin_token, prepared):
     headers = _auth(admin_token)
     created = client.post(
         "/v1/products",
-        json={"code": "T-001", "names": ["Test Ürünü"]},
+        json={"code": "T-001", "names": ["Test Product"]},
         headers=headers,
     )
     assert created.status_code == 201
     duplicate = client.post(
-        "/v1/products", json={"code": "T-001", "names": ["Başka"]}, headers=headers
+        "/v1/products", json={"code": "T-001", "names": ["Other"]}, headers=headers
     )
     assert duplicate.status_code == 400
     build = _build(client, admin_token, prepared, product_id=created.json()["id"])
@@ -227,9 +227,9 @@ def test_build_requires_effective_price(client, admin_token, prepared):
 
 def test_build_validations(client, admin_token, prepared):
     headers = _auth(admin_token)
-    bogus = _build(client, admin_token, prepared, requirement_id="yok")
+    bogus = _build(client, admin_token, prepared, requirement_id="missing")
     assert bogus.status_code == 400
-    unknown = _build(client, admin_token, prepared, product_id="yok")
+    unknown = _build(client, admin_token, prepared, product_id="missing")
     assert unknown.status_code == 404
     bad_quantity = _build(client, admin_token, prepared, quantity=0)
     assert bad_quantity.status_code == 400

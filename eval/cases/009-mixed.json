@@ -1,0 +1,33 @@
+{
+  "id": "009-mixed",
+  "input_text": "2 pcs DN25 ball valves and 10 meters DN25 copper pipe requested.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "ball valve",
+        "features": {
+          "DN": "25"
+        },
+        "quantity": 2,
+        "unit": "pcs",
+        "source": {
+          "page": 1,
+          "quote": "2 pcs DN25 ball valves"
+        }
+      },
+      {
+        "product_type": "copper pipe",
+        "features": {
+          "DN": "25"
+        },
+        "quantity": 10,
+        "unit": "meter",
+        "source": {
+          "page": 1,
+          "quote": "10 meters DN25 copper pipe"
+        }
+      }
+    ]
+  },
+  "notes": "Extended eval set (representative historical inquiry)."
+}

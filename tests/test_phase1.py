@@ -1,4 +1,4 @@
-"""Faz 1 kabul testleri: P1.1 grounding, P1.3, P1.4, P1.5."""
+"""Phase 1 acceptance tests: P1.1 grounding, P1.3, P1.4, P1.5."""
 
 import json
 
@@ -12,49 +12,49 @@ from linevora.model.schemas import SchemaValidationError
 
 
 def test_quote_grounding_rejects_fabricated_quote():
-    pages = (Page(number=1, text="DN50 santrifüj pompa, 10 adet"),)
-    prompt = "Sayfa 1:\nDN50 santrifüj pompa, 10 adet"
+    pages = (Page(number=1, text="DN50 centrifugal pump, 10 pcs"),)
+    prompt = "Page 1:\nDN50 centrifugal pump, 10 pcs"
     bad = {
         "requirements": [
             {
-                "product_type": "santrifüj pompa",
+                "product_type": "centrifugal pump",
                 "quantity": 10,
-                "unit": "adet",
-                "source": {"page": 1, "quote": "bu metin belgede yok"},
+                "unit": "pcs",
+                "source": {"page": 1, "quote": "this text is not in the document"},
             }
         ]
     }
     client = FakeModelClient({prompt: json.dumps(bad, ensure_ascii=False)})
     with pytest.raises(SchemaValidationError):
         extract_requirements(client, pages)
-    assert quote_in_page("DN50 santrifüj pompa", pages[0].text)
-    assert not quote_in_page("yok", pages[0].text)
+    assert quote_in_page("DN50 centrifugal pump", pages[0].text)
+    assert not quote_in_page("missing", pages[0].text)
 
 
 def test_requirement_store_requires_source():
     store = InMemoryRequirementStore()
     with pytest.raises(ValueError):
-        store.add(version_id="v1", product_type="pompa", quote="")
+        store.add(version_id="v1", product_type="pump", quote="")
     with pytest.raises(ValueError):
-        store.add(version_id="v1", product_type="pompa", page=0, quote="alıntı")
-    ok = store.add(version_id="v1", product_type="pompa", page=1, quote="alıntı")
-    assert ok.quote == "alıntı"
+        store.add(version_id="v1", product_type="pump", page=0, quote="quote")
+    ok = store.add(version_id="v1", product_type="pump", page=1, quote="quote")
+    assert ok.quote == "quote"
 
 
 def test_fabricated_quote_produces_no_suggestions(client, app, admin_token, inquiry_id):
-    content = "DN50 santrifüj pompa, 10 adet"
+    content = "DN50 centrifugal pump, 10 pcs"
     bad = {
         "requirements": [
             {
-                "product_type": "santrifüj pompa",
+                "product_type": "centrifugal pump",
                 "quantity": 10,
-                "unit": "adet",
-                "source": {"page": 1, "quote": "uydurma alıntı"},
+                "unit": "pcs",
+                "source": {"page": 1, "quote": "fabricated quote"},
             }
         ]
     }
     app.state.model_client = FakeModelClient(
-        {f"Sayfa 1:\n{content}": json.dumps(bad, ensure_ascii=False)}
+        {f"Page 1:\n{content}": json.dumps(bad, ensure_ascii=False)}
     )
     headers = {"Authorization": f"Bearer {admin_token}"}
     up = client.post(
@@ -78,7 +78,7 @@ def test_pdf_magic_byte_required(client, admin_token, inquiry_id):
     headers = {"Authorization": f"Bearer {admin_token}"}
     response = client.post(
         f"/v1/inquiries/{inquiry_id}/versions",
-        files={"file": ("sahte.pdf", b"aslinda metin")},
+        files={"file": ("fake.pdf", b"actually text")},
         headers=headers,
     )
     assert response.status_code == 415
@@ -89,8 +89,8 @@ def test_prod_app_requires_persistence_and_hashed_passwords(monkeypatch, tmp_pat
     from linevora.main import create_app
 
     monkeypatch.setenv("LINEVORA_ENV", "prod")
-    monkeypatch.setenv("LINEVORA_SECRET_KEY", "guclu-anahtar")
-    monkeypatch.setenv("LINEVORA_USERS", "patron:düzparola:admin")
+    monkeypatch.setenv("LINEVORA_SECRET_KEY", "strong-key")
+    monkeypatch.setenv("LINEVORA_USERS", "boss:plainpassword:admin")
     get_settings.cache_clear()
     try:
         with pytest.raises(RuntimeError):
@@ -108,7 +108,7 @@ def test_invalid_matcher_fails_fast(monkeypatch):
     from linevora.config import get_settings
     from linevora.main import create_app
 
-    monkeypatch.setenv("LINEVORA_MATCHER", "bilinmeyen")
+    monkeypatch.setenv("LINEVORA_MATCHER", "unknown")
     get_settings.cache_clear()
     try:
         with pytest.raises(ValueError):

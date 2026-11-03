@@ -1,15 +1,15 @@
-"""Eval koşucu: vakaları çıkarıcıdan geçirir, puanlar, eşiğe göre kapı uygular.
+"""Eval runner: runs cases through an extractor, scores them, gates on a threshold.
 
-Kullanım:
+Usage:
   python eval/run_eval.py --cases eval/cases --extractor perfect --min-score 0.8
-  python eval/run_eval.py --cases eval/cases --extractor empty --min-score 0.8  # kapı tutmaz
+  python eval/run_eval.py --cases eval/cases --extractor empty --min-score 0.8  # gate fails
 
-`perfect` ve `empty` çıkarıcılar koşum takımının kendini sınaması içindir.
-`scripted`, gerçek çıkarıcı kod yolunu (model çağrısı + şema doğrulama)
-betiklenmiş model yanıtlarıyla çalıştırır: tesisat sınamasıdır, doğruluk
-ölçümü değildir — model yanıtları beklenen çıktıdan üretildiği için
-döngüseldir. Gerçek doğruluk ölçümü, yönetilen model bağdaştırıcısı
-eklendiğinde aynı koşucuyla yapılır.
+The `perfect` and `empty` extractors exist for the harness to test itself.
+`scripted` runs the real extractor code path (model call + schema validation)
+with scripted model responses: it is a plumbing test, not an accuracy
+measurement — it is circular because the model responses are generated from
+the expected output. Real accuracy measurement is done with the same runner
+once a managed model adapter is added.
 """
 
 from __future__ import annotations
@@ -118,7 +118,7 @@ def scripted_extractor(case: dict[str, Any]) -> dict[str, Any]:
     from linevora.model import FakeModelClient
 
     pages = (Page(number=1, text=case["input_text"]),)
-    prompt = f"Sayfa 1:\n{case['input_text']}"
+    prompt = f"Page 1:\n{case['input_text']}"
     client = FakeModelClient(
         responses={prompt: _json.dumps(case["expected"], ensure_ascii=False)}
     )
@@ -126,7 +126,7 @@ def scripted_extractor(case: dict[str, Any]) -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Linevora eval koşucu")
+    parser = argparse.ArgumentParser(description="Linevora eval runner")
     parser.add_argument("--cases", default="eval/cases")
     parser.add_argument(
         "--extractor", choices=["perfect", "empty", "scripted"], default="perfect"

@@ -1,4 +1,4 @@
-"""Adım 6 API yüzeyleri: eksikler, sürüm farkı, alternatifler."""
+"""Report API surfaces: gaps, version diff, alternatives."""
 
 from __future__ import annotations
 
@@ -114,12 +114,12 @@ def list_alternatives(
 
 
 class GapAnswer(BaseModel):
-    status: str = "yanıtlandı"  # yanıtlandı | vazgeçildi
+    status: str = "answered"  # answered | waived
     answer: str = ""
 
 
 class AlternativeDecision(BaseModel):
-    status: str  # onaylandı | reddedildi
+    status: str  # approved | rejected
 
 
 @router.post("/gaps/{gap_id}/answer")
@@ -134,7 +134,7 @@ def answer_gap(
     try:
         updated = gaps.update_status(gap_id, body.status, body.answer)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="eksik yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="gap not found")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     audit.append(actor=user["subject"], action="gap.answer", target=f"gap:{gap_id}", detail=body.answer)
@@ -153,7 +153,7 @@ def decide_alternative(
     try:
         updated = alternatives.update_status(alternative_id, body.status)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="alternatif yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="alternative not found")
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     audit.append(actor=user["subject"], action=f"alternative.{body.status}", target=f"alternative:{alternative_id}")

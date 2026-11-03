@@ -1,7 +1,7 @@
-"""Yalnızca eklenebilen denetim kaydı deposu.
+"""Append-only audit log store.
 
-MVP gerçeklemesi bellek içidir; kalıcı gerçekleme Adım 8'de
-yönetilen veritabanıyla bu arayüzün arkasına geçer.
+The MVP implementation is in-memory; the persistent implementation
+moves behind this interface with a managed database.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ class AuditStore(Protocol):
 
 
 class InMemoryAuditStore:
-    """Tek süreçlik, eklemeli bellek deposu. Kayıtlar değişmezdir."""
+    """Single-process, append-only in-memory store. Records are immutable."""
 
     def __init__(self) -> None:
         self._entries: list[AuditEntry] = []

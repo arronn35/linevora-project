@@ -2,16 +2,15 @@ import type { ReactNode } from "react";
 import { statusLabel, statusTone } from "../tokens";
 
 const PILL: Record<string, string> = {
-  "taslak": "pill-gray", "açık": "pill-amber", "bekliyor": "pill-amber", "incelemede": "pill-blue",
-  "onaylandı": "pill-green", "dışa aktarıldı": "pill-teal", "yürürlükte": "pill-green",
-  "arşiv": "pill-gray", "zorunlu": "pill-red", "bilgi": "pill-gray",
+  "draft": "pill-gray", "open": "pill-amber", "pending": "pill-amber", "in_review": "pill-blue",
+  "approved": "pill-green", "exported": "pill-teal", "active": "pill-green",
+  "archived": "pill-gray", "mandatory": "pill-red", "info": "pill-gray",
   "queued": "pill-amber", "running": "pill-blue", "done": "pill-green", "failed": "pill-red",
-  "reddedildi": "pill-red", "yanıtlandı": "pill-green", "vazgeçildi": "pill-gray",
-  /* Pazar yeri (EN ham değerler) */
-  "draft": "pill-gray", "published": "pill-blue", "awarded": "pill-green", "closed": "pill-gray",
+  "rejected": "pill-red", "answered": "pill-green", "waived": "pill-gray",
+  "published": "pill-blue", "awarded": "pill-green", "closed": "pill-gray",
   "submitted": "pill-blue", "revision_requested": "pill-amber", "selected": "pill-green",
-  "rejected": "pill-red", "withdrawn": "pill-gray",
-  "yayında": "pill-blue", "revize istendi": "pill-amber", "seçildi": "pill-green", "kapandı": "pill-gray",
+  "withdrawn": "pill-gray",
+  "added": "pill-blue", "removed": "pill-red", "changed": "pill-amber", "corrected": "pill-blue",
 };
 
 const TONE_PILL: Record<string, string> = {
@@ -20,14 +19,14 @@ const TONE_PILL: Record<string, string> = {
 
 export function Pill({ t }: { t: string }) {
   const cls = PILL[t] ?? TONE_PILL[statusTone(t)] ?? "pill-gray";
-  return <span className={`p-pill ${cls}`}>{t}</span>;
+  return <span className={`p-pill ${cls}`}>{statusLabel(t)}</span>;
 }
 
-/** Anlamlı durum rozeti: taslak=nötr, yayında=info, revize istendi=uyarı, seçildi=başarı, kapandı=nötr. */
+/** Meaningful status badge: draft=neutral, published=info, revision requested=warning, selected=success, closed=neutral. */
 export function StatusBadge({ status, label }: { status: string; label?: string }) {
   const tone = statusTone(status);
   return (
-    <span className={`p-badge tone-${tone}`} data-status={status} aria-label={`Durum: ${label ?? statusLabel(status)}`}>
+    <span className={`p-badge tone-${tone}`} data-status={status} aria-label={`Status: ${label ?? statusLabel(status)}`}>
       {label ?? statusLabel(status)}
     </span>
   );
@@ -55,7 +54,7 @@ export function EmptyState({ title, desc, action }: { title: string; desc?: stri
   );
 }
 
-export function Skeleton({ lines = 3, label = "Yükleniyor" }: { lines?: number; label?: string }) {
+export function Skeleton({ lines = 3, label = "Loading" }: { lines?: number; label?: string }) {
   return (
     <div className="p-skeleton" role="status" aria-label={label} aria-busy="true">
       <span className="p-skeleton-line short" />
@@ -74,7 +73,7 @@ export function Banner({ msg, kind }: { msg: string | null; kind?: "ok" | "err" 
   return <div className={`p-banner${kind === "ok" ? " ok" : ""}`} role="alert">{msg}</div>;
 }
 export function Steps({ done }: { done: boolean[] }) {
-  const labels = ["Talep", "Dosya", "İşleme", "Teklif", "Onay ve gönderi"];
+  const labels = ["Inquiry", "File", "Processing", "Quote", "Approval & sending"];
   const firstOpen = done.findIndex((d) => !d);
   return (
     <div className="p-steps">

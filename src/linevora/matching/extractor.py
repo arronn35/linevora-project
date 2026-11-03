@@ -1,4 +1,4 @@
-"""Model çıktısından gereksinim çıkarma (şema doğrulamalı)."""
+"""Extracting requirements from model output (schema-validated)."""
 
 from __future__ import annotations
 
@@ -9,16 +9,16 @@ from ..model.client import ModelClient
 from ..model.schemas import REQUIREMENTS_SCHEMA, SchemaValidationError, parse_and_validate
 
 SYSTEM_PROMPT = (
-    "Endüstriyel talep metninden ürün gereksinimlerini çıkar. "
-    "Yalnızca JSON döndür: "
+     "Extract product requirements from the industrial inquiry text. "
+    "Return only JSON: "
     '{"requirements": [{"product_type": "...", "features": {...}, '
     '"quantity": ..., "unit": "...", "source": {"page": ..., "quote": "..."}}]}. '
-    "Her gereksinime, dayandığı sayfayı ve birebir alıntıyı kaynak olarak yaz."
+    "For each requirement, give the page it relies on and the verbatim quote as the source."
 )
 
 
 def _user_prompt(pages: tuple[Page, ...]) -> str:
-    return "\n\n".join(f"Sayfa {page.number}:\n{page.text}" for page in pages)
+    return "\n\n".join(f"Page {page.number}:\n{page.text}" for page in pages)
 
 
 def _normalize(text: str) -> str:
@@ -26,20 +26,28 @@ def _normalize(text: str) -> str:
 
 
 def quote_in_page(quote: str, page_text: str) -> bool:
-    """Alıntı, sayfa metninde normalize alt-dize olarak var mı?"""
+    """Is the quote present in the page text as a normalized substring?"""
     return bool(_normalize(quote)) and _normalize(quote) in _normalize(page_text)
 
 
 _UNIT_ALIASES = {
-    "ad": "adet",
-    "adet": "adet",
-    "pcs": "adet",
-    "m": "metre",
-    "metre": "metre",
-    "mt": "metre",
-    "lt": "litre",
-    "litre": "litre",
-    "l": "litre",
+    "pc": "pcs",
+    "piece": "pcs",
+    "pieces": "pcs",
+    "pcs": "pcs",
+    "ea": "pcs",
+    "m": "meter",
+    "meter": "meter",
+    "meters": "meter",
+    "metre": "meter",
+    "metres": "meter",
+    "mt": "meter",
+    "lt": "liter",
+    "liter": "liter",
+    "liters": "liter",
+    "litre": "liter",
+    "litres": "liter",
+    "l": "liter",
 }
 
 
@@ -62,7 +70,7 @@ def _normalize_draft(draft: dict[str, Any]) -> dict[str, Any]:
 def extract_requirements(
     client: ModelClient, pages: tuple[Page, ...]
 ) -> list[dict[str, Any]]:
-    # Uzun belgeler 5 sayfalık parçalarla çağrılır, sonuçlar birleştirilir.
+    # Long documents are called in 5-page chunks and the results are merged.
     if len(pages) > 5:
         merged: list[dict[str, Any]] = []
         for start in range(0, len(pages), 5):
@@ -75,16 +83,16 @@ def extract_requirements(
         page_no = draft["source"]["page"]
         page = by_number.get(page_no)
         if page is None:
-            raise SchemaValidationError(f"kaynak sayfa aralık dışı: {page_no}")
-        # Değişmez-1: uydurma alıntı şemayı geçemez.
+            raise SchemaValidationError(f"source page out of range: {page_no}")
+        # Invariant: an invented quote cannot pass the schema.
         if not quote_in_page(draft["source"]["quote"], page.text):
             raise SchemaValidationError(
-                f"kaynak alıntı sayfa metninde bulunamadı (sayfa {page_no})"
+                f"source quote not found in the page text (page {page_no})"
             )
         quantity = draft.get("quantity")
         if quantity is not None and (
             not isinstance(quantity, (int, float)) or quantity != quantity or quantity <= 0
         ):
-            raise SchemaValidationError(f"geçersiz miktar: {quantity!r}")
+            raise SchemaValidationError(f"invalid quantity: {quantity!r}")
         _normalize_draft(draft)
     return parsed["requirements"]

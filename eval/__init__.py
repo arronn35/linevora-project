@@ -1,1 +1,1 @@
-"""Değerlendirme seti çalıştırıcısı."""
+"""Evaluation set runner."""

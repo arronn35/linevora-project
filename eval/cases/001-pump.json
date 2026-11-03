@@ -1,0 +1,22 @@
+{
+  "id": "001-pump",
+  "input_text": "DN50 centrifugal pump, 10 pcs. Head must be at least 40 m.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "centrifugal pump",
+        "features": {
+          "DN": "50",
+          "min_head_m": 40
+        },
+        "quantity": 10,
+        "unit": "pcs",
+        "source": {
+          "page": 1,
+          "quote": "DN50 centrifugal pump, 10 pcs"
+        }
+      }
+    ]
+  },
+  "notes": "Basic single-requirement case."
+}

@@ -1,4 +1,4 @@
-/* Linevora API istemcisi — /v1 yüzeyi, belirteç localStorage'da tutulur. */
+/* Linevora API client — the /v1 surface; the token is kept in localStorage. */
 
 export type Role = "admin" | "specialist" | "viewer";
 
@@ -37,7 +37,7 @@ export function getToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 export function setToken(t: string | null) {
-  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* yoksay */ }
+  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
 }
 
 export class ApiError extends Error {
@@ -89,7 +89,7 @@ export const api = {
   alternatives: (inquiryId: string, versionNo: number) => req<{ alternatives: Alternative[] }>(`/inquiries/${inquiryId}/versions/${versionNo}/alternatives`),
   diff: (inquiryId: string, a: number, b: number) => req<{ from_version: number; to_version: number; changes: DiffChange[] }>(`/inquiries/${inquiryId}/versions/${a}/diff/${b}`),
   decideSuggestion: (id: string, status: string) => req<unknown>(`/suggestions/${id}`, { method: "PATCH", json: { status } }),
-  answerGap: (id: string, answer: string) => req<unknown>(`/gaps/${id}/answer`, { method: "POST", json: { status: "yanıtlandı", answer } }),
+  answerGap: (id: string, answer: string) => req<unknown>(`/gaps/${id}/answer`, { method: "POST", json: { status: "answered", answer } }),
   products: () => req<{ products: Product[] }>("/products"),
   createProduct: (code: string, names: string[], unit: string) => req<unknown>("/products", { method: "POST", json: { code, names, unit } }),
   prices: (productId: string) => req<{ prices: Price[] }>(`/prices?product_id=${productId}`),
@@ -110,7 +110,7 @@ export const api = {
   snapshot: () => req<{ saved: boolean; path: string }>("/admin/snapshot", { method: "POST" }),
 };
 
-/* ---- Pazar yeri ---- */
+/* ---- Marketplace ---- */
 export interface MpTrust { level: string; has_published: boolean; has_agreement: boolean; agreements_completed: number }
 export interface MpCompany { company_id: string; display_name: string; level: string; trust_level?: string; has_published: boolean; has_agreement: boolean; agreements_completed: number; completed_agreements?: number; published_listings: number }
 export interface MpListing { id: string; kind: string; owner_user: string; company_id?: string; title: string; raw_text: string; product: string | null; quantity: string | null; unit: string | null; delivery_place: string | null; delivery_days: number | null; category: string | null; features: Record<string, unknown>; missing_fields: string[]; needs_clarification: boolean; status: string; document?: string; created_at?: number; updated_at?: number; company?: MpCompany; owner_company?: MpCompany; trust?: MpTrust }
@@ -150,5 +150,5 @@ export const mpApi = {
 
 export const isAdmin = (u: User | null) => !!u?.roles.includes("admin");
 export const isEditor = (u: User | null) => !!u && (u.roles.includes("admin") || u.roles.includes("specialist"));
-export const money = (n: number, cur?: string) => `${Number(n).toLocaleString("tr-TR")} ${cur ?? ""}`.trim();
-export const dt = (ts: number) => new Date(ts * 1000).toLocaleString("tr-TR");
+export const money = (n: number, cur?: string) => `${Number(n).toLocaleString("en-US")} ${cur ?? ""}`.trim();
+export const dt = (ts: number) => new Date(ts * 1000).toLocaleString("en-US");

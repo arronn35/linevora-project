@@ -1,10 +1,10 @@
 "use strict";
-/* Linevora paneli: yalın SaaS arayüzü, çerçevesiz. */
+/* Linevora panel: a plain SaaS interface, framework-free. */
 
 const S = {
-  token: null, user: null, tab: "talepler",
+  token: null, user: null, tab: "inquiries",
   inquiries: [], inquiryId: null,
-  versions: [], versionNo: null, sub: "oneriler",
+  versions: [], versionNo: null, sub: "suggestions",
   suggestions: null, gaps: null, alternatives: null,
   diff: null, diffFrom: null, diffTo: null,
   quotes: [], quoteId: null, quoteDetail: null, quoteDoc: null, filter: "",
@@ -17,10 +17,10 @@ function esc(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function money(n, cur) {
-  return Number(n).toLocaleString("tr-TR") + (cur ? " " + esc(cur) : "");
+  return Number(n).toLocaleString("en-US") + (cur ? " " + esc(cur) : "");
 }
 function dt(ts) {
-  return new Date(ts * 1000).toLocaleString("tr-TR");
+  return new Date(ts * 1000).toLocaleString("en-US");
 }
 function banner(msg, kind) {
   const b = document.getElementById("banner");
@@ -52,9 +52,9 @@ const isAdmin = () => !!(S.user && S.user.roles.includes("admin"));
 const isEditor = () => !!(S.user && (S.user.roles.includes("admin") || S.user.roles.includes("specialist")));
 
 const PILL = {
-  "taslak": "p-gray", "açık": "p-blue", "bekliyor": "p-amber", "incelemede": "p-amber",
-  "onaylandı": "p-green", "dışa aktarıldı": "p-teal", "yürürlükte": "p-green",
-  "arşiv": "p-gray", "zorunlu": "p-red", "bilgi": "p-gray",
+  "draft": "p-gray", "open": "p-blue", "pending": "p-amber", "in_review": "p-amber",
+  "approved": "p-green", "exported": "p-teal", "active": "p-green",
+  "archived": "p-gray", "mandatory": "p-red", "info": "p-gray",
   "queued": "p-gray", "running": "p-blue", "done": "p-green", "failed": "p-red",
 };
 function pill(t) {
@@ -71,15 +71,15 @@ function vSteps() {
     S.versions.length > 0,
     (S.job && S.job.status === "done") || !!(S.suggestions && S.suggestions.requirements && S.suggestions.requirements.length),
     S.quotes.length > 0,
-    S.quotes.some((q) => q.status === "dışa aktarıldı"),
+    S.quotes.some((q) => q.status === "exported"),
   ];
-  const labels = ["Talep", "Dosya", "İşleme", "Teklif", "Onay ve gönderi"];
+  const labels = ["Inquiry", "File", "Processing", "Quote", "Approval & sending"];
   const firstOpen = done.findIndex((d) => !d);
   return `<div class="steps">` + labels.map((l, i) =>
     `<span class="step ${done[i] ? "done" : i === firstOpen ? "active" : ""}">${i + 1}. ${l}</span>`).join(`<span class="steparr">→</span>`) + `</div>`;
 }
 
-/* ---------- yükleyiciler ---------- */
+/* ---------- loaders ---------- */
 
 async function loadInquiries() {
   S.inquiries = (await api("/inquiries")).inquiries;
@@ -98,9 +98,9 @@ async function loadDetail() {
 async function loadSub() {
   if (!S.versionNo) return;
   const base = `/inquiries/${S.inquiryId}/versions/${S.versionNo}`;
-  if (S.sub === "oneriler" || S.sub === "teklifler") S.suggestions = await api(base + "/suggestions");
-  if (S.sub === "eksikler") S.gaps = await api(base + "/gaps");
-  if (S.sub === "alternatifler") S.alternatives = await api(base + "/alternatives");
+  if (S.sub === "suggestions" || S.sub === "quotes") S.suggestions = await api(base + "/suggestions");
+  if (S.sub === "gaps") S.gaps = await api(base + "/gaps");
+  if (S.sub === "alternatives") S.alternatives = await api(base + "/alternatives");
 }
 async function loadCatalog() {
   S.products = (await api("/products")).products;
@@ -115,7 +115,7 @@ async function loadMetrics() {
   S.metrics = await api("/metrics");
 }
 
-/* ---------- giriş ---------- */
+/* ---------- sign-in ---------- */
 
 async function doLogin(ev) {
   ev.preventDefault(); banner(null);
@@ -127,7 +127,7 @@ async function doLogin(ev) {
     try { localStorage.setItem("linevora_token", S.token); } catch (e) {}
     S.user = await api("/me");
     await loadInquiries();
-  } catch (e) { banner("Giriş başarısız: " + e.message); }
+  } catch (e) { banner("Sign-in failed: " + e.message); }
   render();
 }
 async function doLogout() {
@@ -137,26 +137,26 @@ async function doLogout() {
   banner(null); render();
 }
 function vLogin() {
-  return `<div class="card login-card"><h2>Giriş</h2>
-    <p class="muted">Dağınık talepleri (PDF, e-posta) kaynağı gösterilebilir tekliflere dönüştürür: yükle → işlet → önerileri kontrol et → teklif kur → onayla.</p>
+  return `<div class="card login-card"><h2>Sign in</h2>
+    <p class="muted">Turns scattered inquiries (PDF, email) into quotes with sources you can show: upload → process → review the suggestions → build the quote → approve.</p>
     <form class="stack" onsubmit="doLogin(event)">
-      <input id="li-user" placeholder="Kullanıcı adı" autocomplete="username" required>
-      <input id="li-pass" type="password" placeholder="Parola" autocomplete="current-password" required>
-      <button class="btn btn-primary" type="submit">Giriş yap</button>
+      <input id="li-user" placeholder="Username" autocomplete="username" required>
+      <input id="li-pass" type="password" placeholder="Password" autocomplete="current-password" required>
+      <button class="btn btn-primary" type="submit">Sign in</button>
     </form></div>`;
 }
 
-/* ---------- iskelet ---------- */
+/* ---------- shell ---------- */
 
 async function goTab(k) {
   S.tab = k; S.quoteDoc = null; banner(null);
   try {
-    if (k === "talepler") await loadInquiries();
-    if (k === "katalog") await loadCatalog();
-    if (k === "fiyat") { await loadCatalog(); await loadTerms(); await loadAllPrices(); }
-    if (k === "denetim") await loadAudit();
-    if (k === "olcu") await loadMetrics();
-  } catch (e) { banner("Yükleme hatası: " + e.message); }
+    if (k === "inquiries") await loadInquiries();
+    if (k === "catalog") await loadCatalog();
+    if (k === "pricing") { await loadCatalog(); await loadTerms(); await loadAllPrices(); }
+    if (k === "audit") await loadAudit();
+    if (k === "metrics") await loadMetrics();
+  } catch (e) { banner("Loading error: " + e.message); }
   render();
 }
 async function loadAllPrices() {
@@ -174,39 +174,39 @@ function render() {
     v.innerHTML = vLogin();
     return;
   }
-  const roleHint = S.user.roles.includes("admin") ? "Fiyat, ürün ve onay yetkisi sizde"
-    : S.user.roles.includes("specialist") ? "Talep ve teklif hazırlarsınız" : "Salt okunur görüntüleme";
-  ub.innerHTML = `${esc(S.user.username)} · ${esc(S.user.roles.join(", "))} <span class="role-hint">${roleHint}</span> <button class="btn btn-light" onclick="doLogout()">Çıkış</button>`;
-  const allTabs = [["talepler", "Talepler"], ["katalog", "Katalog"], ["fiyat", "Fiyat & Şartlar"], ["denetim", "Denetim"], ["olcu", "Ölçümler"]];
-  const tabs = allTabs.filter(([k]) => k !== "denetim" && k !== "olcu" || isAdmin());
-  if (!tabs.find(([k]) => k === S.tab)) S.tab = "talepler";
+  const roleHint = S.user.roles.includes("admin") ? "Pricing, products and approval authority are yours"
+    : S.user.roles.includes("specialist") ? "You prepare inquiries and quotes" : "Read-only view";
+  ub.innerHTML = `${esc(S.user.username)} · ${esc(S.user.roles.join(", "))} <span class="role-hint">${roleHint}</span> <button class="btn btn-light" onclick="doLogout()">Sign out</button>`;
+  const allTabs = [["inquiries", "Inquiries"], ["catalog", "Catalog"], ["pricing", "Pricing & Terms"], ["audit", "Audit"], ["metrics", "Metrics"]];
+  const tabs = allTabs.filter(([k]) => (k !== "audit" && k !== "metrics") || isAdmin());
+  if (!tabs.find(([k]) => k === S.tab)) S.tab = "inquiries";
   let h = `<nav class="tabs">` + tabs.map(([k, l]) =>
     `<button class="tab${S.tab === k ? " active" : ""}" onclick="goTab('${k}')">${l}</button>`).join("") + `</nav>`;
-  if (S.tab === "talepler") h += vTalepler();
-  else if (S.tab === "katalog") h += vKatalog();
-  else if (S.tab === "fiyat") h += vFiyat();
-  else if (S.tab === "denetim") h += vDenetim();
-  else h += vOlcu();
+  if (S.tab === "inquiries") h += vInquiries();
+  else if (S.tab === "catalog") h += vCatalog();
+  else if (S.tab === "pricing") h += vPricing();
+  else if (S.tab === "audit") h += vAudit();
+  else h += vMetrics();
   if (S.quoteDoc) h += vQuoteModal();
   v.innerHTML = h;
 }
 
-/* ---------- talepler ---------- */
+/* ---------- inquiries ---------- */
 
 function setFilter(v) { S.filter = v; render(); }
-function vTalepler() {
-  const q = (S.filter || "").toLocaleLowerCase("tr");
-  const items = S.inquiries.filter((x) => !q || (x.title + " " + x.customer).toLocaleLowerCase("tr").includes(q)).map((q) =>
+function vInquiries() {
+  const q = (S.filter || "").toLocaleLowerCase("en");
+  const items = S.inquiries.filter((x) => !q || (x.title + " " + x.customer).toLocaleLowerCase("en").includes(q)).map((q) =>
     `<button class="listitem${q.id === S.inquiryId ? " active" : ""}" onclick="selectInquiry('${q.id}')">` +
     `<b>${esc(q.title)}</b><span class="muted">${esc(q.customer)} · ${esc(q.status)}</span></button>`).join("");
-  let left = `<div class="card"><h3>Talepler</h3><label class="muted">Ara <input aria-label="Talep ara" placeholder="müşteri / başlık" value="${esc(S.filter || "")}" onchange="setFilter(this.value)"></label><div class="list">${items || '<p class="muted">Kayıt yok.</p>'}</div>`;
+  let left = `<div class="card"><h3>Inquiries</h3><label class="muted">Search <input aria-label="Search inquiries" placeholder="customer / title" value="${esc(S.filter || "")}" onchange="setFilter(this.value)"></label><div class="list">${items || '<p class="muted">No records.</p>'}</div>`;
   if (isEditor()) {
-    left += `<h4>Yeni Talep</h4><form class="stack" onsubmit="newInquiry(event)">` +
-      `<input id="ni-customer" placeholder="Müşteri" required><input id="ni-title" placeholder="Başlık" required>` +
-      `<button class="btn btn-primary" type="submit">Aç</button></form>`;
+    left += `<h4>New Inquiry</h4><form class="stack" onsubmit="newInquiry(event)">` +
+      `<input id="ni-customer" placeholder="Customer" required><input id="ni-title" placeholder="Title" required>` +
+      `<button class="btn btn-primary" type="submit">Open</button></form>`;
   }
   left += `</div>`;
-  const right = S.inquiryId ? vInquiryDetail() : `<div class="card"><p class="muted">Soldan bir talep seçin.</p></div>`;
+  const right = S.inquiryId ? vInquiryDetail() : `<div class="card"><p class="muted">Select an inquiry on the left.</p></div>`;
   return `<div class="grid2"><div>${left}</div><div>${right}</div></div>`;
 }
 
@@ -216,14 +216,14 @@ async function newInquiry(ev) {
     const q = await api("/inquiries", { method: "POST", body: {
       customer: document.getElementById("ni-customer").value.trim(),
       title: document.getElementById("ni-title").value.trim() } });
-    S.inquiryId = q.id; S.versionNo = null; S.sub = "oneriler"; S.job = null; S.quoteId = null;
+    S.inquiryId = q.id; S.versionNo = null; S.sub = "suggestions"; S.job = null; S.quoteId = null;
     await loadInquiries(); await loadDetail();
   } catch (e) { banner(e.message); }
   render();
 }
 async function selectInquiry(id) {
-  try { history.replaceState(null, "", "#talep/" + id); } catch (e) {}
-  S.inquiryId = id; S.versionNo = null; S.sub = "oneriler"; S.job = null; S.quoteId = null; S.diff = null;
+  try { history.replaceState(null, "", "#inquiry/" + id); } catch (e) {}
+  S.inquiryId = id; S.versionNo = null; S.sub = "suggestions"; S.job = null; S.quoteId = null; S.diff = null;
   banner(null);
   try { await loadDetail(); } catch (e) { banner(e.message); }
   render();
@@ -236,7 +236,7 @@ async function selectVersion(no) {
 async function goSub(k) {
   S.sub = k; banner(null);
   try {
-    if (k === "teklifler") await loadCatalog();
+    if (k === "quotes") await loadCatalog();
     await loadSub();
   } catch (e) { banner(e.message); }
   render();
@@ -247,36 +247,36 @@ function vInquiryDetail() {
   let h = `<div class="card"><h3>${esc(q.title || "")}</h3>` +
     `<p class="muted">${esc(q.customer || "")} · ${pill(q.status || "")}</p>`;
   h += vSteps();
-  h += `<h4>Sürümler</h4>`;
-  h += hint("Her yükleme yeni sürümdür; eskiler silinmez. Müşteri düzeltme gönderirse yeni dosya olarak yükleyin — Fark sekmesi değişenleri gösterir.");
+  h += `<h4>Versions</h4>`;
+  h += hint("Every upload is a new version; older ones are never deleted. If the customer sends a correction, upload it as a new file — the Diff tab shows what changed.");
   if (S.versions.length) {
-    h += `<table><tr><th>No</th><th>Dosya</th><th>Sayfa</th><th></th></tr>` + S.versions.map((v) =>
+    h += `<table><tr><th>No</th><th>File</th><th>Pages</th><th></th></tr>` + S.versions.map((v) =>
       `<tr><td>${v.version_no}</td><td>${esc(v.filename)}</td><td>${v.pages.length}</td>` +
-      `<td>${v.version_no === S.versionNo ? "<b>seçili</b>" : `<button class="btn" onclick="selectVersion(${v.version_no})">Seç</button>`}</td></tr>` +
-      `<tr><td></td><td colspan="3"><details><summary>Metin önizleme</summary><pre class="text">${esc(v.pages.map((p) => `--- Sayfa ${p.number} ---\n${p.text}`).join("\n\n"))}</pre></details></td></tr>`
+      `<td>${v.version_no === S.versionNo ? "<b>selected</b>" : `<button class="btn" onclick="selectVersion(${v.version_no})">Select</button>`}</td></tr>` +
+      `<tr><td></td><td colspan="3"><details><summary>Text preview</summary><pre class="text">${esc(v.pages.map((p) => `--- Page ${p.number} ---\n${p.text}`).join("\n\n"))}</pre></details></td></tr>`
     ).join("") + `</table>`;
   } else {
-    h += `<p class="muted">Henüz sürüm yok; aşağıdan dosya yükleyin.</p>`;
+    h += `<p class="muted">No versions yet; upload a file below.</p>`;
   }
   if (isEditor()) {
-    h += `<h4>Sürüm Yükle</h4><form class="inline" onsubmit="uploadVersion(event)">` +
-      `<input id="up-file" type="file" accept=".pdf,.txt,.md" required><button class="btn btn-primary" type="submit">Yükle</button></form>`;
+    h += `<h4>Upload Version</h4><form class="inline" onsubmit="uploadVersion(event)">` +
+      `<input id="up-file" type="file" accept=".pdf,.txt,.md" required><button class="btn btn-primary" type="submit">Upload</button></form>`;
   }
   h += `</div>`;
   if (S.versionNo) {
-    h += `<div class="card"><h3>Sürüm ${S.versionNo} İşleme</h3>` + hint("Sistem metinden gereksinimleri çıkarır ve katalogla eşleştirir. Sonuç Öneriler sekmesine düşer; her öneriyi kaynak alıntısıyla doğrulayın.") + `<div class="row">`;
-    if (isEditor()) h += `<button class="btn btn-primary" onclick="processVersion()">Gereksinim çıkar + eşleştir</button>`;
-    if (S.job) h += `<span>İş: ${pill(S.job.status)} (deneme ${S.job.attempts})</span><button class="btn" onclick="refreshJob()">Durumu yenile</button>`;
-    else h += `<span class="muted">Henüz işletilmedi.</span>`;
+    h += `<div class="card"><h3>Process Version ${S.versionNo}</h3>` + hint("The system extracts requirements from the text and matches them against the catalog. Results land in the Suggestions tab; verify each suggestion against its source quote.") + `<div class="row">`;
+    if (isEditor()) h += `<button class="btn btn-primary" onclick="processVersion()">Extract requirements + match</button>`;
+    if (S.job) h += `<span>Job: ${pill(S.job.status)} (attempt ${S.job.attempts})</span><button class="btn" onclick="refreshJob()">Refresh status</button>`;
+    else h += `<span class="muted">Not processed yet.</span>`;
     h += `</div></div>`;
-    const subs = [["oneriler", "Öneriler"], ["eksikler", "Eksikler"], ["alternatifler", "Alternatifler"], ["fark", "Fark"], ["teklifler", "Teklifler"]];
+    const subs = [["suggestions", "Suggestions"], ["gaps", "Gaps"], ["alternatives", "Alternatives"], ["diff", "Diff"], ["quotes", "Quotes"]];
     h += `<div class="card"><div class="subtabs">` + subs.map(([k, l]) =>
       `<button class="subtab${S.sub === k ? " active" : ""}" onclick="goSub('${k}')">${l}</button>`).join("") + `</div>`;
-    if (S.sub === "oneriler") h += vSubOneriler();
-    else if (S.sub === "eksikler") h += vSubEksikler();
-    else if (S.sub === "alternatifler") h += vSubAlternatifler();
-    else if (S.sub === "fark") h += vSubFark();
-    else h += vSubTeklifler();
+    if (S.sub === "suggestions") h += vSubSuggestions();
+    else if (S.sub === "gaps") h += vSubGaps();
+    else if (S.sub === "alternatives") h += vSubAlternatives();
+    else if (S.sub === "diff") h += vSubDiff();
+    else h += vSubQuotes();
     h += `</div>`;
   }
   return h;
@@ -292,7 +292,7 @@ async function uploadVersion(ev) {
     const v = await api(`/inquiries/${S.inquiryId}/versions`, { method: "POST", body: fd });
     S.versionNo = v.version_no; S.job = null;
     await loadDetail();
-  } catch (e) { banner("Yükleme hatası: " + e.message); }
+  } catch (e) { banner("Loading error: " + e.message); }
   render();
 }
 async function processVersion() {
@@ -309,8 +309,8 @@ async function processVersion() {
     }
     S.job = job;
     if (job.status === "done") await loadDetail();
-    else banner("İş başarısız: " + (job.error || ""));
-  } catch (e) { banner("İşleme hatası: " + e.message); }
+    else banner("Job failed: " + (job.error || ""));
+  } catch (e) { banner("Processing error: " + e.message); }
   render();
 }
 async function refreshJob() {
@@ -322,22 +322,22 @@ async function refreshJob() {
   render();
 }
 
-function vSubOneriler() {
+function vSubSuggestions() {
   const d = S.suggestions;
-  const desc = hint("Skor 0-1 arasındadır: 0.85 ve üzeri genelde birebir eşleşme, altı dikkatli inceleme ister. “bekliyor” rozeti, ekibin henüz karar vermediği anlamına gelir.");
-  if (!d || !d.requirements.length) return desc + `<p class="muted">Gereksinim yok. Önce sürümü işletin.</p>`;
+  const desc = hint("The score is between 0 and 1: 0.85 and above is usually an exact match, below that needs careful review. A \u201cpending\u201d badge means the team has not decided yet.");
+  if (!d || !d.requirements.length) return desc + `<p class="muted">No requirements. Process the version first.</p>`;
   return desc + d.requirements.map((r) => {
     const sugs = d.suggestions.filter((s) => s.requirement_id === r.id);
     const feat = Object.entries(r.features || {}).map(([k, v]) => `${esc(k)}=${esc(v)}`).join(", ");
     let h = `<div class="card"><b>${esc(r.product_type)}</b> <span class="muted">${esc(r.quantity === null || r.quantity === undefined ? "?" : r.quantity)} ${esc(r.unit || "")}${feat ? " · " + feat : ""}</span>` +
-      `<br><span class="muted">Kaynak: sayfa ${r.source.page} — “${esc(r.source.quote)}”</span> <button class="btn" onclick="showSource('${r.id}')">Kaynağı göster</button>` +
+      `<br><span class="muted">Source: page ${r.source.page} — “${esc(r.source.quote)}”</span> <button class="btn" onclick="showSource('${r.id}')">Show source</button>` +
       (S.sourceView === r.id ? `<pre class="srcview">${highlighted(r.source.page, r.source.quote)}</pre>` : "");
-    if (!sugs.length) h += `<p class="muted">Öneri yok.</p>`;
-    else h += `<table><tr><th>Ürün</th><th>Skor</th><th></th><th>Gerekçe</th></tr>` + sugs.map((s) =>
+    if (!sugs.length) h += `<p class="muted">No suggestions.</p>`;
+    else h += `<table><tr><th>Product</th><th>Score</th><th></th><th>Rationale</th></tr>` + sugs.map((s) =>
       `<tr><td><b>${esc(s.product.code)}</b><br><span class="muted">${esc(s.product.names.join(", "))}</span></td>` +
       `<td>${s.score.toFixed(2)}</td>` +
       `<td><div class="scorebar"><div style="width:${Math.round(s.score * 100)}%"></div></div></td>` +
-      `<td>${s.reasons.map(esc).join("<br>")}<br>${pill(s.status)}${isEditor() && s.id ? ` <button class="btn" onclick="decideSuggestion('${s.id}','onaylandı')">Kabul</button> <button class="btn" onclick="decideSuggestion('${s.id}','reddedildi')">Reddet</button>` : ""}</td></tr>`).join("") + `</table>`;
+      `<td>${s.reasons.map(esc).join("<br>")}<br>${pill(s.status)}${isEditor() && s.id ? ` <button class="btn" onclick="decideSuggestion('${s.id}','approved')">Accept</button> <button class="btn" onclick="decideSuggestion('${s.id}','rejected')">Reject</button>` : ""}</td></tr>`).join("") + `</table>`;
     return h + `</div>`;
   }).join("");
 }
@@ -349,42 +349,42 @@ function showSource(reqId) {
 function highlighted(pageNo, quote) {
   const v = S.versions.find((x) => x.version_no === S.versionNo);
   const pg = v && v.pages.find((x) => x.number === pageNo);
-  if (!pg) return "Sayfa metni bulunamadı.";
+  if (!pg) return "Page text not found.";
   const text = esc(pg.text); const q = esc(quote);
-  const i = text.toLocaleLowerCase("tr").indexOf(q.toLocaleLowerCase("tr"));
+  const i = text.toLocaleLowerCase("en").indexOf(q.toLocaleLowerCase("en"));
   if (i < 0) return text;
   return text.slice(0, i) + "<mark>" + text.slice(i, i + q.length) + "</mark>" + text.slice(i + q.length);
 }
-function vSubEksikler() {
+function vSubGaps() {
   const d = S.gaps;
-  const desc = hint("Bunlar müşteriye sorulacak sorulardır. “zorunlu” olanlar teklife girmeden tamamlanmalı; “bilgi” olanlar kaliteyi artırır.");
-  if (!d || !d.gaps.length) return desc + `<p class="muted">Eksik yok — teklif kurulabilir.</p>`;
-  return desc + `<div class="row" style="margin-bottom:10px"><button class="btn" onclick="copyGaps()">Soru listesini kopyala</button></div>` + `<table><tr><th>Alan</th><th>Soru</th><th>Önem</th><th>Durum</th><th></th></tr>` + d.gaps.map((g) =>
-    `<tr><td>${esc(g.field)}</td><td>${esc(g.question)}</td><td>${pill(g.severity)}</td><td>${pill(g.status)}${g.answer ? "<br>" + esc(g.answer) : ""}</td><td>${isEditor() && g.status === "açık" ? `<button class="btn" onclick="answerGap('${g.id}')">Yanıtla</button>` : ""}</td></tr>`).join("") + `</table>`;
+  const desc = hint("These are questions to ask the customer. \u201cMandatory\u201d ones must be completed before the quote; \u201cinfo\u201d ones improve quality.");
+  if (!d || !d.gaps.length) return desc + `<p class="muted">No gaps — a quote can be built.</p>`;
+  return desc + `<div class="row" style="margin-bottom:10px"><button class="btn" onclick="copyGaps()">Copy question list</button></div>` + `<table><tr><th>Field</th><th>Question</th><th>Severity</th><th>Status</th><th></th></tr>` + d.gaps.map((g) =>
+    `<tr><td>${esc(g.field)}</td><td>${esc(g.question)}</td><td>${pill(g.severity)}</td><td>${pill(g.status)}${g.answer ? "<br>" + esc(g.answer) : ""}</td><td>${isEditor() && g.status === "open" ? `<button class="btn" onclick="answerGap('${g.id}')">Answer</button>` : ""}</td></tr>`).join("") + `</table>`;
 }
 
-function vSubAlternatifler() {
+function vSubAlternatives() {
   const d = S.alternatives;
-  const desc = hint("Birebir ürün yoksa en yakın adaylar ölçüte göre karşılaştırılır. “Uyum” sütunu hangi şartın tuttuğunu gösterir; önerebilir misiniz kararı sizde.");
-  if (!d || !d.alternatives.length) return desc + `<p class="muted">Alternatif yok (birebir eşleşme var ya da sürüm işletilmedi).</p>`;
+  const desc = hint("When there is no exact product, the closest candidates are compared by criterion. The \u201cMatch\u201d column shows which condition holds; whether to suggest it is your decision.");
+  if (!d || !d.alternatives.length) return desc + `<p class="muted">No alternatives (there is an exact match, or the version was not processed).</p>`;
   return desc + d.alternatives.map((a) =>
-    `<div class="card"><b>${esc(a.product.code)}</b> <span class="muted">${esc(a.product.names.join(", "))} · skor ${a.score.toFixed(2)}</span> ${pill(a.status)}` +
-    `<table><tr><th>Ölçüt</th><th>İstenen</th><th>Sunulan</th><th>Uyum</th></tr>` + a.comparison.map((r) =>
-      `<tr><td>${esc(r.criterion)}</td><td>${esc(r.wanted)}</td><td>${esc(r.offered)}</td><td>${r.match ? "Evet" : "—"}</td></tr>`).join("") + `</table>` +
+    `<div class="card"><b>${esc(a.product.code)}</b> <span class="muted">${esc(a.product.names.join(", "))} · score ${a.score.toFixed(2)}</span> ${pill(a.status)}` +
+    `<table><tr><th>Criterion</th><th>Wanted</th><th>Offered</th><th>Match</th></tr>` + a.comparison.map((r) =>
+      `<tr><td>${esc(r.criterion)}</td><td>${esc(r.wanted)}</td><td>${esc(r.offered)}</td><td>${r.match ? "Yes" : "—"}</td></tr>`).join("") + `</table>` +
     `<span class="muted">${a.reasons.map(esc).join("<br>")}</span></div>`).join("");
 }
 
-function vSubFark() {
+function vSubDiff() {
   const opts = S.versions.map((v) => v.version_no);
   const from = S.diffFrom !== null && S.diffFrom !== undefined ? S.diffFrom : opts[0];
   const to = S.diffTo !== null && S.diffTo !== undefined ? S.diffTo : opts[opts.length - 1];
   const sel = (id, val) => `<select id="${id}">` + opts.map((n) =>
-    `<option value="${n}"${n === val ? " selected" : ""}>Sürüm ${n}</option>`).join("") + `</select>`;
-  let h = hint("İki sürüm arasında miktarı, birimi veya özellikleri değişen; eklenen ve çıkarılan kalemler.") + `<form class="inline" onsubmit="loadDiff(event)">${sel("diff-a", from)}${sel("diff-b", to)}` +
-    `<button class="btn btn-primary" type="submit">Karşılaştır</button></form>`;
-  if (!S.diff) return h + `<p class="muted">İki sürüm seçip karşılaştırın.</p>`;
-  if (!S.diff.changes.length) return h + `<p class="muted">Fark yok.</p>`;
-  h += `<table><tr><th>Tür</th><th>Ürün</th><th>Alan</th><th>Eski</th><th>Yeni</th></tr>` + S.diff.changes.map((c) =>
+    `<option value="${n}"${n === val ? " selected" : ""}>Version ${n}</option>`).join("") + `</select>`;
+  let h = hint("Items whose quantity, unit or features changed between two versions; items added and removed.") + `<form class="inline" onsubmit="loadDiff(event)">${sel("diff-a", from)}${sel("diff-b", to)}` +
+    `<button class="btn btn-primary" type="submit">Compare</button></form>`;
+  if (!S.diff) return h + `<p class="muted">Select two versions and compare.</p>`;
+  if (!S.diff.changes.length) return h + `<p class="muted">No differences.</p>`;
+  h += `<table><tr><th>Type</th><th>Product</th><th>Field</th><th>Old</th><th>New</th></tr>` + S.diff.changes.map((c) =>
     `<tr><td>${pill(c.type)}</td><td>${esc(c.product_type)}</td><td>${esc(c.field)}</td><td>${esc(c.old)}</td><td>${esc(c.new)}</td></tr>`).join("") + `</table>`;
   return h;
 }
@@ -404,10 +404,10 @@ async function decideSuggestion(id, status) {
   render();
 }
 async function answerGap(id) {
-  const answer = prompt("Yanıt / not:");
+  const answer = prompt("Answer / note:");
   if (answer === null) return;
   banner(null);
-  try { await api(`/gaps/${id}/answer`, { method: "POST", body: { status: "yanıtlandı", answer } }); await loadSub(); }
+  try { await api(`/gaps/${id}/answer`, { method: "POST", body: { status: "answered", answer } }); await loadSub(); }
   catch (e) { banner(e.message); }
   render();
 }
@@ -415,48 +415,48 @@ async function downloadPdf() {
   banner(null);
   try {
     const res = await fetch(`/v1/quotes/${S.quoteId}/export.pdf`, { headers: { Authorization: "Bearer " + S.token } });
-    if (!res.ok) throw new Error("PDF alınamadı (" + res.status + ")");
+    if (!res.ok) throw new Error("Could not fetch the PDF (" + res.status + ")");
     const blob = await res.blob();
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = "teklif.pdf"; a.click();
+    a.href = URL.createObjectURL(blob); a.download = "quote.pdf"; a.click();
     URL.revokeObjectURL(a.href);
   } catch (e) { banner(e.message); }
 }
 async function copyGaps() {
   const d = S.gaps;
   if (!d || !d.gaps.length) return;
-  const lines = ["Merhaba, teklif hazırlamak için şu bilgileri rica ediyoruz:"]
+  const lines = ["Hello, to prepare your quote we would like the following information:"]
     .concat(d.gaps.map((g) => "- " + g.question));
   try {
     await navigator.clipboard.writeText(lines.join("\n"));
-    banner("Soru listesi panoya kopyalandı.", "ok");
+    banner("Question list copied to clipboard.", "ok");
   } catch (e) {
-    banner("Kopyalama başarısız: " + e.message);
+    banner("Copy failed: " + e.message);
   }
 }
 
-/* ---------- teklifler ---------- */
+/* ---------- quotes ---------- */
 
-function vSubTeklifler() {
+function vSubQuotes() {
   const reqs = (S.suggestions && S.suggestions.requirements) || [];
   const sugs = (S.suggestions && S.suggestions.suggestions) || [];
-  let h = hint("Ürünler en iyi öneriye göre önceden seçilidir; miktar boş bırakılırsa gereksinimdeki miktar kullanılır. Fiyat, teklif kurulduğu anda yürürlükteki sürümden kilitlenir.") + `<h4>Teklifler</h4>`;
+  let h = hint("Products are pre-selected from the best suggestion; if you leave the quantity blank, the quantity in the requirement is used. The price is locked from the version active when the quote is created.") + `<h4>Quotes</h4>`;
   h += S.quotes.length ? `<div class="list">` + S.quotes.map((q) =>
     `<button class="listitem${q.id === S.quoteId ? " active" : ""}" onclick="selectQuote('${q.id}')">` +
-    `<span><b>Sürüm ${q.version_no} teklifi</b> ${pill(q.status)}</span><span class="muted">${esc(q.created_by)}${q.approved_by ? " · onay: " + esc(q.approved_by) : ""}</span></button>`).join("") + `</div>`
-    : `<p class="muted">Bu talepte teklif yok.</p>`;
+    `<span><b>Version ${q.version_no} quote</b> ${pill(q.status)}</span><span class="muted">${esc(q.created_by)}${q.approved_by ? " · approved by: " + esc(q.approved_by) : ""}</span></button>`).join("") + `</div>`
+    : `<p class="muted">No quotes for this inquiry.</p>`;
   if (isEditor() && reqs.length) {
-    h += `<h4>Kalemler</h4><table><tr><th>Gereksinim</th><th>Ürün</th><th>Miktar</th></tr>` + reqs.map((r) => {
+    h += `<h4>Lines</h4><table><tr><th>Requirement</th><th>Product</th><th>Quantity</th></tr>` + reqs.map((r) => {
       const top = sugs.find((s) => s.requirement_id === r.id);
-      const opts = [`<option value="">— seçin —</option>`].concat(S.products.map((p) =>
+      const opts = [`<option value="">— select —</option>`].concat(S.products.map((p) =>
         `<option value="${p.id}"${top && top.product.code === p.code ? " selected" : ""}>${esc(p.code)} — ${esc(p.names.join(", "))}</option>`)).join("");
       return `<tr data-req="${r.id}"><td><b>${esc(r.product_type)}</b><br><span class="muted">${esc(r.quantity === null || r.quantity === undefined ? "?" : r.quantity)} ${esc(r.unit || "")}</span></td>` +
         `<td><select class="q-prod">${opts}</select></td>` +
         `<td><input class="q-qty" type="number" min="0" step="any" placeholder="${esc(r.quantity === null || r.quantity === undefined ? "" : r.quantity)}" style="width:110px"></td></tr>`;
     }).join("") + `</table><div class="row">` +
-      `<button class="btn btn-primary" onclick="buildQuote(false)">Yeni teklif oluştur</button>`;
-    if (S.quoteDetail && S.quoteDetail.status === "taslak") {
-      h += `<button class="btn" onclick="buildQuote(true)">Seçili taslağı güncelle</button>`;
+      `<button class="btn btn-primary" onclick="buildQuote(false)">Create new quote</button>`;
+    if (S.quoteDetail && S.quoteDetail.status === "draft") {
+      h += `<button class="btn" onclick="buildQuote(true)">Update selected draft</button>`;
     }
     h += `</div>`;
   }
@@ -476,7 +476,7 @@ async function buildQuote(edit) {
     const qtyRaw = row.querySelector(".q-qty").value;
     if (prod) lines.push({ requirement_id: row.getAttribute("data-req"), product_id: prod, quantity: qtyRaw === "" ? null : Number(qtyRaw) });
   });
-  if (!lines.length) { banner("En az bir kalem için ürün seçin."); return; }
+  if (!lines.length) { banner("Select a product for at least one line."); return; }
   try {
     if (edit) S.quoteDetail = await api(`/quotes/${S.quoteId}/lines`, { method: "PUT", body: { lines } });
     else {
@@ -484,25 +484,25 @@ async function buildQuote(edit) {
       S.quoteId = S.quoteDetail.id;
     }
     S.quotes = (await api(`/inquiries/${S.inquiryId}/quotes`)).quotes;
-  } catch (e) { banner("Teklif hatası: " + e.message); }
+  } catch (e) { banner("Quote error: " + e.message); }
   render();
 }
 function vQuoteDetail() {
   const q = S.quoteDetail;
-  let h = `<h4>Teklif Detayı ${pill(q.status)}</h4><table><tr><th>Ürün</th><th>Miktar</th><th>Birim fiyat</th><th>Tutar</th></tr>` +
+  let h = `<h4>Quote Detail ${pill(q.status)}</h4><table><tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Amount</th></tr>` +
     q.lines.map((l) =>
       `<tr><td><b>${esc(l.product.code)}</b><br><span class="muted">${esc(l.product.names.join(", "))}</span></td>` +
       `<td>${esc(l.quantity)} ${esc(l.unit)}</td><td>${money(l.unit_price, l.currency)}</td><td>${money(l.amount, l.currency)}</td></tr>`).join("") +
-    q.totals.map((t) => `<tr class="total-row"><td colspan="3">Toplam</td><td>${money(t.amount, t.currency)}</td></tr>`).join("") + `</table>`;
-  h += `<p class="muted">Hazırlayan: ${esc(q.created_by)}${q.approved_by ? " · Onaylayan: " + esc(q.approved_by) : ""}<br>Kalem fiyatları, kurulduğu anda yürürlükteki fiyat sürümünden kilitlenmiştir; sonraki fiyat değişimi bu teklifi etkilemez.</p><div class="row">`;
-  if (isEditor() && q.status === "taslak") h += `<button class="btn btn-primary" onclick="quoteAction('submit')">İncelemeye sun</button>`;
-  if (isAdmin() && q.status === "incelemede") h += `<button class="btn btn-primary" onclick="quoteAction('approve')">Onayla</button><button class="btn" onclick="quoteAction('return')">İade et</button>`;
-  h += `<button class="btn" onclick="previewQuote()">Önizleme</button>`;
-  if (isEditor() && (q.status === "onaylandı" || q.status === "dışa aktarıldı")) h += `<button class="btn btn-primary" onclick="exportQuote()">Dışa aktar</button>`;
+    q.totals.map((t) => `<tr class="total-row"><td colspan="3">Total</td><td>${money(t.amount, t.currency)}</td></tr>`).join("") + `</table>`;
+  h += `<p class="muted">Prepared by: ${esc(q.created_by)}${q.approved_by ? " · Approved by: " + esc(q.approved_by) : ""}<br>Line prices are locked from the price version active when the quote was created; a later price change does not affect this quote.</p><div class="row">`;
+  if (isEditor() && q.status === "draft") h += `<button class="btn btn-primary" onclick="quoteAction('submit')">Submit for review</button>`;
+  if (isAdmin() && q.status === "in_review") h += `<button class="btn btn-primary" onclick="quoteAction('approve')">Approve</button><button class="btn" onclick="quoteAction('return')">Return</button>`;
+  h += `<button class="btn" onclick="previewQuote()">Preview</button>`;
+  if (isEditor() && (q.status === "approved" || q.status === "exported")) h += `<button class="btn btn-primary" onclick="exportQuote()">Export</button>`;
   return h + `</div>`;
 }
 async function quoteAction(action) {
-  if (action === "approve" && !confirm("Teklif onaylanacak ve dışa aktarmaya hazır olacak. Emin misiniz?")) return;
+  if (action === "approve" && !confirm("The quote will be approved and ready to export. Are you sure?")) return;
   banner(null);
   try {
     S.quoteDetail = await api(`/quotes/${S.quoteId}/${action}`, { method: "POST" });
@@ -511,7 +511,7 @@ async function quoteAction(action) {
   render();
 }
 async function exportQuote() {
-  if (!confirm("Onaylanmış teklif dışa aktarılacak ve belge üretilecek. Emin misiniz?")) return;
+  if (!confirm("The approved quote will be exported and a document will be generated. Are you sure?")) return;
   banner(null);
   try {
     S.quoteDoc = await api(`/quotes/${S.quoteId}/export`);
@@ -542,25 +542,25 @@ function closeModal() { S.quoteDoc = null; render(); }
 function vQuoteModal() {
   const d = S.quoteDoc;
   return `<div class="modal-veil" onclick="if(event.target===this)closeModal()"><div class="modal">` +
-    `<div class="quote-head"><h2>Teklif ${d.preview ? "(Önizleme)" : ""}</h2><button class="btn" onclick="closeModal()">Kapat</button></div>` +
-    `<p><b>Müşteri:</b> ${esc(d.customer)} &nbsp; <b>Sürüm:</b> ${esc(d.version_no)} &nbsp; ${pill(d.status)}</p>` +
-    `<table><tr><th>Ürün</th><th>Miktar</th><th>Birim fiyat</th><th>Tutar</th></tr>` +
+    `<div class="quote-head"><h2>Quote ${d.preview ? "(Preview)" : ""}</h2><button class="btn" onclick="closeModal()">Close</button></div>` +
+    `<p><b>Customer:</b> ${esc(d.customer)} &nbsp; <b>Version:</b> ${esc(d.version_no)} &nbsp; ${pill(d.status)}</p>` +
+    `<table><tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Amount</th></tr>` +
     d.lines.map((l) => `<tr><td><b>${esc(l.product_code)}</b><br><span class="muted">${esc((l.product_names || []).join(", "))}</span></td><td>${esc(l.quantity)} ${esc(l.unit)}</td><td>${money(l.unit_price, l.currency)}</td><td>${money(l.amount, l.currency)}</td></tr>`).join("") +
-    d.totals.map((t) => `<tr class="total-row"><td colspan="3">Toplam</td><td>${money(t.amount, t.currency)}</td></tr>`).join("") + `</table>` +
+    d.totals.map((t) => `<tr class="total-row"><td colspan="3">Total</td><td>${money(t.amount, t.currency)}</td></tr>`).join("") + `</table>` +
     (d.terms ? `<h4>${esc(d.terms.name)}</h4><div class="termsbox">${esc(d.terms.text)}</div>` : "") +
-    `<p class="muted">Hazırlayan: ${esc(d.prepared_by)}${d.approved_by ? " · Onaylayan: " + esc(d.approved_by) : ""}</p>` +
-    (!d.preview ? `<div class="row"><button class="btn btn-primary" onclick="downloadPdf()">PDF indir</button></div>` : "") +
+    `<p class="muted">Prepared by: ${esc(d.prepared_by)}${d.approved_by ? " · Approved by: " + esc(d.approved_by) : ""}</p>` +
+    (!d.preview ? `<div class="row"><button class="btn btn-primary" onclick="downloadPdf()">Download PDF</button></div>` : "") +
     `</div></div>`;
 }
 
-/* ---------- katalog ---------- */
+/* ---------- catalog ---------- */
 
-function vKatalog() {
-  let h = `<div class="card"><h3>Ürünler</h3>` + hint("Eşanlamlılar çok önemlidir: müşteri ürünü başka isimle anarsa eşleşme buradan gelir. Kodu bir kez yazarsınız; adlar virgülle ayrılır.") + `<table><tr><th>Kod</th><th>Adlar</th><th>Özellikler</th><th>Birim</th></tr>` +
-    S.products.map((p) => `<tr><td><b>${esc(p.code)}</b></td><td>${esc(p.names.join(", "))}${p.synonyms.length ? `<br><span class="muted">eş: ${esc(p.synonyms.join(", "))}</span>` : ""}</td><td>${esc(Object.entries(p.features || {}).map(([k, v]) => `${k}=${v}`).join(", "))}</td><td>${esc(p.unit)}</td></tr>`).join("") + `</table></div>`;
+function vCatalog() {
+  let h = `<div class="card"><h3>Products</h3>` + hint("Synonyms matter a lot: if the customer calls the product by another name, the match comes from here. You write the code once; names are comma-separated.") + `<table><tr><th>Code</th><th>Names</th><th>Features</th><th>Unit</th></tr>` +
+    S.products.map((p) => `<tr><td><b>${esc(p.code)}</b></td><td>${esc(p.names.join(", "))}${p.synonyms.length ? `<br><span class="muted">syn: ${esc(p.synonyms.join(", "))}</span>` : ""}</td><td>${esc(Object.entries(p.features || {}).map(([k, v]) => `${k}=${v}`).join(", "))}</td><td>${esc(p.unit)}</td></tr>`).join("") + `</table></div>`;
   if (isAdmin()) {
-    h += `<div class="card"><h3>Yeni Ürün</h3><form class="inline" onsubmit="addProduct(event)">` +
-      `<input id="np-code" placeholder="Kod" required><input id="np-names" placeholder="Adlar (virgülle)" required style="min-width:220px"><input id="np-unit" placeholder="Birim" value="adet" style="width:90px"><button class="btn btn-primary" type="submit">Ekle</button></form></div>`;
+    h += `<div class="card"><h3>New Product</h3><form class="inline" onsubmit="addProduct(event)">` +
+      `<input id="np-code" placeholder="Code" required><input id="np-names" placeholder="Names (comma-separated)" required style="min-width:220px"><input id="np-unit" placeholder="Unit" value="pcs" style="width:90px"><button class="btn btn-primary" type="submit">Add</button></form></div>`;
   }
   return h;
 }
@@ -570,33 +570,33 @@ async function addProduct(ev) {
     await api("/products", { method: "POST", body: {
       code: document.getElementById("np-code").value.trim(),
       names: document.getElementById("np-names").value.split(",").map((s) => s.trim()).filter(Boolean),
-      unit: document.getElementById("np-unit").value.trim() || "adet" } });
+      unit: document.getElementById("np-unit").value.trim() || "pcs" } });
     await loadCatalog();
   } catch (e) { banner(e.message); }
   render();
 }
 
-/* ---------- fiyat & şartlar ---------- */
+/* ---------- pricing & terms ---------- */
 
-function vFiyat() {
-  let h = `<div class="card"><h3>Fiyatlar</h3>` + hint("Yeni fiyat taslak olarak eklenir; “Yürürlüğe al” derseniz teklifler yeni fiyatı kullanır. Eski teklifler kilitli fiyatlarını korur.") + S.products.map((p) => {
+function vPricing() {
+  let h = `<div class="card"><h3>Prices</h3>` + hint("A new price is added as a draft; when you activate it, quotes use the new price. Older quotes keep their locked prices.") + S.products.map((p) => {
     const rows = (S.prices[p.id] || []).map((v) =>
       `<tr><td>${money(v.price, v.currency)}</td><td>${pill(v.status)}</td>` +
-      `<td>${isAdmin() && v.status === "taslak" ? `<button class="btn" onclick="activatePrice('${v.id}')">Yürürlüğe al</button>` : ""}</td></tr>`).join("");
+      `<td>${isAdmin() && v.status === "draft" ? `<button class="btn" onclick="activatePrice('${v.id}')">Activate</button>` : ""}</td></tr>`).join("");
     let block = `<h4>${esc(p.code)} — ${esc(p.names.join(", "))}</h4>`;
-    block += rows ? `<table><tr><th>Fiyat</th><th>Durum</th><th></th></tr>${rows}</table>` : `<p class="muted">Fiyat yok.</p>`;
+    block += rows ? `<table><tr><th>Price</th><th>Status</th><th></th></tr>${rows}</table>` : `<p class="muted">No price.</p>`;
     if (isAdmin()) {
       block += `<form class="inline" onsubmit="addPrice(event, '${p.id}')">` +
-        `<input data-price placeholder="Fiyat" type="number" min="0" step="any" required style="width:130px"><input data-cur placeholder="Para birimi" value="TRY" style="width:90px"><button class="btn" type="submit">Taslak ekle</button></form>`;
+        `<input data-price placeholder="Price" type="number" min="0" step="any" required style="width:130px"><input data-cur placeholder="Currency" value="USD" style="width:90px"><button class="btn" type="submit">Add draft</button></form>`;
     }
     return block;
   }).join("") + `</div>`;
-  h += `<div class="card"><h3>Şartlar</h3><table><tr><th>Ad</th><th>Metin</th><th>Durum</th><th></th></tr>` +
+  h += `<div class="card"><h3>Terms</h3><table><tr><th>Name</th><th>Text</th><th>Status</th><th></th></tr>` +
     S.terms.map((t) => `<tr><td><b>${esc(t.name)}</b></td><td>${esc(t.text)}</td><td>${pill(t.status)}</td>` +
-      `<td>${isAdmin() && t.status === "taslak" ? `<button class="btn" onclick="activateTerms('${t.id}')">Yürürlüğe al</button>` : ""}</td></tr>`).join("") + `</table>`;
+      `<td>${isAdmin() && t.status === "draft" ? `<button class="btn" onclick="activateTerms('${t.id}')">Activate</button>` : ""}</td></tr>`).join("") + `</table>`;
   if (isAdmin()) {
-    h += `<h4>Yeni Şart</h4><form class="inline" onsubmit="addTerms(event)">` +
-      `<input id="nt-name" placeholder="Ad" required><input id="nt-text" placeholder="Metin" required style="min-width:280px"><button class="btn btn-primary" type="submit">Ekle</button></form>`;
+    h += `<h4>New Terms</h4><form class="inline" onsubmit="addTerms(event)">` +
+      `<input id="nt-name" placeholder="Name" required><input id="nt-text" placeholder="Text" required style="min-width:280px"><button class="btn btn-primary" type="submit">Add</button></form>`;
   }
   return h + `</div>`;
 }
@@ -606,7 +606,7 @@ async function addPrice(ev, productId) {
     await api("/prices", { method: "POST", body: {
       product_id: productId,
       price: Number(ev.target.querySelector("[data-price]").value),
-      currency: ev.target.querySelector("[data-cur]").value.trim() || "TRY" } });
+      currency: ev.target.querySelector("[data-cur]").value.trim() || "USD" } });
     S.prices[productId] = (await api(`/prices?product_id=${productId}`)).prices;
   } catch (e) { banner(e.message); }
   render();
@@ -634,30 +634,30 @@ async function activateTerms(id) {
   render();
 }
 
-/* ---------- denetim & ölçümler ---------- */
+/* ---------- audit & metrics ---------- */
 
-function vDenetim() {
-  return `<div class="card"><div class="row" style="justify-content:space-between"><h3>Denetim Kaydı</h3><button class="btn" onclick="goTab('denetim')">Yenile</button></div>` +
-    hint("Tüm önemli işlemler buraya yazılır; bir sorun olduğunda kimin ne yaptığını buradan izlersiniz.") + `<table><tr><th>#</th><th>Zaman</th><th>Aktör</th><th>İşlem</th><th>Hedef</th><th>Detay</th></tr>` +
+function vAudit() {
+  return `<div class="card"><div class="row" style="justify-content:space-between"><h3>Audit Log</h3><button class="btn" onclick="goTab('audit')">Refresh</button></div>` +
+    hint("Every important operation is written here; when something goes wrong you can trace who did what.") + `<table><tr><th>#</th><th>Time</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr>` +
     S.audit.slice().reverse().map((e) =>
       `<tr><td>${e.seq}</td><td>${dt(e.timestamp)}</td><td>${esc(e.actor)}</td><td>${esc(e.action)}</td><td>${esc(e.target)}</td><td>${esc(e.detail)}</td></tr>`).join("") + `</table></div>`;
 }
-function vOlcu() {
+function vMetrics() {
   const m = S.metrics;
-  if (!m) return `<div class="card"><p class="muted">Ölçüm yok.</p></div>`;
+  if (!m) return `<div class="card"><p class="muted">No metrics.</p></div>`;
   const cards = [
-    [m.http.total, "HTTP isteği"],
-    [m.jobs.by_status.done || 0, "Tamamlanan iş"],
-    [m.jobs.by_status.failed || 0, "Başarısız iş"],
-    [m.model.calls, "Model çağrısı"],
-    [m.quotes.exported, "Dışa aktarılan teklif"],
-    [m.quotes.avg_approval_seconds === null || m.quotes.avg_approval_seconds === undefined ? "—" : m.quotes.avg_approval_seconds + " sn", "Ort. onay süresi"],
+    [m.http.total, "HTTP requests"],
+    [m.jobs.by_status.done || 0, "Completed jobs"],
+    [m.jobs.by_status.failed || 0, "Failed jobs"],
+    [m.model.calls, "Model calls"],
+    [m.quotes.exported, "Exported quotes"],
+    [m.quotes.avg_approval_seconds === null || m.quotes.avg_approval_seconds === undefined ? "—" : m.quotes.avg_approval_seconds + " sec", "Avg. approval time"],
   ];
-  return hint("Sistemin genel sağlığı ve teklif hattının hızı. Ortalama onay süresi, teklifin sunulmasından onayına geçen süredir.") + `<div class="stat-grid">` + cards.map(([n, l]) =>
+  return hint("Overall system health and the speed of the quote pipeline. Average approval time is the time from submitting a quote to its approval.") + `<div class="stat-grid">` + cards.map(([n, l]) =>
     `<div class="stat"><div class="n">${esc(n)}</div><div class="l">${esc(l)}</div></div>`).join("") + `</div>` +
-    `<div class="card"><h3>Teklif Durumları</h3><p>` +
+    `<div class="card"><h3>Quote Statuses</h3><p>` +
     Object.entries(m.quotes.by_status).map(([k, v]) => `${pill(k)} ${v}`).join(" &nbsp; ") + `</p>` +
-    `<div class="row"><button class="btn" onclick="goTab('olcu')">Yenile</button></div></div>`;
+    `<div class="row"><button class="btn" onclick="goTab('metrics')">Refresh</button></div></div>`;
 }
 
 (async function restoreSession() {
@@ -666,7 +666,7 @@ function vOlcu() {
     if (!saved) return;
     S.token = saved;
     S.user = await api("/me");
-    const m = location.hash.match(/talep\/([a-z0-9]+)/i);
+    const m = location.hash.match(/inquiry\/([a-z0-9]+)/i);
     await loadInquiries();
     if (m) { S.inquiryId = m[1]; await loadDetail(); }
     render();

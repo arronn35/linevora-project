@@ -1,8 +1,8 @@
-"""Sözlüksel taban eşleştirici: şeffaf, ölçülebilir başlangıç.
+"""Lexical baseline matcher: a transparent, measurable starting point.
 
-Skor = 0.50 ad benzerliği + 0.35 özellik uyumu + 0.15 birim uyumu.
-Vektör dizini bağdaştırıcısı aynı arayüzün arkasına daha sonra geçer;
-bu taban çizgi, eval setinde karşılaştırma noktası olur.
+Score = 0.50 name similarity + 0.35 feature match + 0.15 unit match.
+A vector-index adapter moves behind the same interface later; this
+baseline is the comparison point on the eval set.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ class LexicalMatcher:
         overlap = (len(wanted & offered) / len(wanted)) if wanted else 0.0
         if wanted & offered:
             matched = " ".join(sorted(wanted & offered))
-            reasons.append(f"ürün adı eşleşti: {matched}")
+            reasons.append(f"product name matched: {matched}")
         feature_fraction = 0.0
         if requirement.features:
             hits = 0
@@ -57,7 +57,7 @@ class LexicalMatcher:
             for key, value in requirement.features.items():
                 if _norm(key) in lowered and _norm(lowered[_norm(key)]) == _norm(value):
                     hits += 1
-                    reasons.append(f"özellik eşleşti: {key}={value}")
+                    reasons.append(f"feature matched: {key}={value}")
             feature_fraction = hits / len(requirement.features)
         unit_hit = (
             1.0
@@ -65,6 +65,6 @@ class LexicalMatcher:
             else 0.0
         )
         if unit_hit:
-            reasons.append(f"birim eşleşti: {requirement.unit}")
+            reasons.append(f"unit matched: {requirement.unit}")
         score = 0.50 * overlap + 0.35 * feature_fraction + 0.15 * unit_hit
         return ScoredProduct(product=product, score=score, reasons=tuple(reasons))

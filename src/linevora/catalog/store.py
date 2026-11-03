@@ -1,5 +1,5 @@
-"""Katalog deposu. MVP gerçeklemesi bellek içidir; kalıcı gerçekleme
-Adım 8'de yönetilen veritabanıyla bu arayüzün arkasına geçer.
+"""Catalog store. The MVP implementation is in-memory; the persistent
+implementation moves behind this interface with a managed database.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class CatalogStore(Protocol):
         names: list[str],
         synonyms: list[str] | None = None,
         features: dict[str, Any] | None = None,
-        unit: str = "adet",
+        unit: str = "pcs",
     ) -> Product:
         ...
 
@@ -43,7 +43,7 @@ class InMemoryCatalogStore:
         names: list[str],
         synonyms: list[str] | None = None,
         features: dict[str, Any] | None = None,
-        unit: str = "adet",
+        unit: str = "pcs",
     ) -> Product:
         with self._lock:
             product = Product(
@@ -82,41 +82,41 @@ class InMemoryCatalogStore:
                     names=tuple(item["names"]),
                     synonyms=tuple(item.get("synonyms", [])),
                     features=dict(item.get("features", {})),
-                    unit=item.get("unit", "adet"),
+                    unit=item.get("unit", "pcs"),
                 )
 
 
 def seed_demo_catalog(store: CatalogStore) -> list[Product]:
-    """Pilot denemeleri için örnek ürünler."""
+    """Sample products for pilot trials."""
     return [
         store.add(
             code="P-001",
-            names=["Santrifüj Pompa"],
-            synonyms=["santrifuj pompa", "centrifugal pump"],
-            features={"DN": "50", "basma_yuksekligi_m": 45, "basinc_sinifi": "PN16"},
+            names=["Centrifugal Pump"],
+            synonyms=["centrifugal pump"],
+            features={"DN": "50", "head_m": 45, "pressure_class": "PN16"},
         ),
         store.add(
             code="P-002",
-            names=["Dalgıç Pompa"],
-            synonyms=["derin kuyu pompası"],
-            features={"DN": "80", "basma_yuksekligi_m": 60},
+            names=["Submersible Pump"],
+            synonyms=["deep well pump"],
+            features={"DN": "80", "head_m": 60},
         ),
         store.add(
             code="V-001",
-            names=["Sürgülü Vana"],
-            synonyms=["sürgülü vana", "gate valve"],
-            features={"DN": "80", "basinc_sinifi": "PN16"},
+            names=["Gate Valve"],
+            synonyms=["gate valve"],
+            features={"DN": "80", "pressure_class": "PN16"},
         ),
         store.add(
             code="V-002",
-            names=["Çekvalf"],
-            synonyms=["çek valf", "check valve"],
-            features={"DN": "80", "basinc_sinifi": "PN16"},
+            names=["Check Valve"],
+            synonyms=["check valve"],
+            features={"DN": "80", "pressure_class": "PN16"},
         ),
         store.add(
             code="V-003",
-            names=["Küresel Vana"],
+            names=["Ball Valve"],
             synonyms=["ball valve"],
-            features={"DN": "25", "basinc_sinifi": "PN40"},
+            features={"DN": "25", "pressure_class": "PN40"},
         ),
     ]

@@ -1,5 +1,5 @@
-"""Talep deposu. MVP gerçeklemesi bellek içidir; kalıcı gerçekleme
-Adım 8'de yönetilen veritabanıyla bu arayüzün arkasına geçer.
+"""Inquiry store. The MVP implementation is in-memory; the persistent
+implementation moves behind this interface with a managed database.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
-"""Sürüm farkı: iki sürümün gereksinimlerini karşılaştırır.
+"""Version diff: compares the requirements of two versions.
 
-Saf işlevdir; sonuç saklanmaz, istek anında hesaplanır.
+A pure function; the result is not stored, it is computed on request.
 """
 
 from __future__ import annotations
@@ -40,7 +40,7 @@ def diff_requirements(
         if old_req is None and new_req is not None:
             changes.append(
                 {
-                    "type": "eklendi",
+                    "type": "added",
                     "product_type": new_req.product_type,
                     "field": None,
                     "old": None,
@@ -50,7 +50,7 @@ def diff_requirements(
         elif new_req is None and old_req is not None:
             changes.append(
                 {
-                    "type": "çıkarıldı",
+                    "type": "removed",
                     "product_type": old_req.product_type,
                     "field": None,
                     "old": None,
@@ -61,9 +61,9 @@ def diff_requirements(
             if old_req.quantity != new_req.quantity:
                 changes.append(
                     {
-                        "type": "değişti",
+                        "type": "changed",
                         "product_type": old_req.product_type,
-                        "field": "miktar",
+                        "field": "quantity",
                         "old": old_req.quantity,
                         "new": new_req.quantity,
                     }
@@ -71,9 +71,9 @@ def diff_requirements(
             if _norm(old_req.unit) != _norm(new_req.unit):
                 changes.append(
                     {
-                        "type": "değişti",
+                        "type": "changed",
                         "product_type": old_req.product_type,
-                        "field": "birim",
+                        "field": "unit",
                         "old": old_req.unit,
                         "new": new_req.unit,
                     }
@@ -83,9 +83,9 @@ def diff_requirements(
                 if _norm(old_req.features.get(key)) != _norm(new_req.features.get(key)):
                     changes.append(
                         {
-                            "type": "değişti",
+                            "type": "changed",
                             "product_type": old_req.product_type,
-                            "field": f"özellik:{key}",
+                            "field": f"feature:{key}",
                             "old": old_req.features.get(key),
                             "new": new_req.features.get(key),
                         }

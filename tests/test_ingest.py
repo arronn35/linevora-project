@@ -1,4 +1,4 @@
-"""Talep açma, sürüm yükleme ve sürüm listeleme (Adım 3 kabulü)."""
+"""Opening inquiries, uploading and listing versions."""
 
 import pytest
 from reportlab.pdfgen import canvas
@@ -22,19 +22,19 @@ def _make_pdf(path, texts):
 def test_create_inquiry(client, admin_token):
     response = client.post(
         "/v1/inquiries",
-        json={"customer": "Acme", "title": "Pompa"},
+        json={"customer": "Acme", "title": "Pump"},
         headers=_auth(admin_token),
     )
     assert response.status_code == 201
     body = response.json()
     assert body["customer"] == "Acme"
-    assert body["status"] == "açık"
+    assert body["status"] == "open"
 
 
 def test_create_inquiry_viewer_forbidden(client, viewer_token):
     response = client.post(
         "/v1/inquiries",
-        json={"customer": "Acme", "title": "Pompa"},
+        json={"customer": "Acme", "title": "Pump"},
         headers=_auth(viewer_token),
     )
     assert response.status_code == 403
@@ -43,36 +43,36 @@ def test_create_inquiry_viewer_forbidden(client, viewer_token):
 def test_upload_text_version_preserves_content(client, admin_token, inquiry_id):
     response = client.post(
         f"/v1/inquiries/{inquiry_id}/versions",
-        files={"file": ("sartname.txt", "DN50 pompa, 10 adet".encode("utf-8"))},
+        files={"file": ("spec.txt", "DN50 pump, 10 pcs".encode("utf-8"))},
         headers=_auth(admin_token),
     )
     assert response.status_code == 201
     body = response.json()
     assert body["version_no"] == 1
-    assert body["pages"] == [{"number": 1, "text": "DN50 pompa, 10 adet"}]
+    assert body["pages"] == [{"number": 1, "text": "DN50 pump, 10 pcs"}]
 
 
 def test_upload_pdf_version_preserves_pages(client, admin_token, inquiry_id, tmp_path):
     content = _make_pdf(
-        tmp_path / "talep.pdf", ["Birinci sayfa gereksinim", "Ikinci sayfa miktar"]
+        tmp_path / "inquiry.pdf", ["First page requirement", "Second page quantity"]
     )
     response = client.post(
         f"/v1/inquiries/{inquiry_id}/versions",
-        files={"file": ("talep.pdf", content, "application/pdf")},
+        files={"file": ("inquiry.pdf", content, "application/pdf")},
         headers=_auth(admin_token),
     )
     assert response.status_code == 201
     pages = response.json()["pages"]
     assert [page["number"] for page in pages] == [1, 2]
-    assert "Birinci sayfa" in pages[0]["text"]
-    assert "Ikinci sayfa" in pages[1]["text"]
+    assert "First page" in pages[0]["text"]
+    assert "Second page" in pages[1]["text"]
 
 
 def test_versions_are_linked_and_numbered(client, admin_token, inquiry_id):
     for index in range(2):
         response = client.post(
             f"/v1/inquiries/{inquiry_id}/versions",
-            files={"file": (f"v{index}.txt", f"içerik {index}".encode("utf-8"))},
+            files={"file": (f"v{index}.txt", f"content {index}".encode("utf-8"))},
             headers=_auth(admin_token),
         )
         assert response.status_code == 201
@@ -102,7 +102,7 @@ def test_viewer_can_list_but_not_upload(client, admin_token, viewer_token, inqui
 def test_upload_unsupported_format(client, admin_token, inquiry_id):
     response = client.post(
         f"/v1/inquiries/{inquiry_id}/versions",
-        files={"file": ("tablo.xlsx", b"degil")},
+        files={"file": ("sheet.xlsx", b"nope")},
         headers=_auth(admin_token),
     )
     assert response.status_code == 415
@@ -110,7 +110,7 @@ def test_upload_unsupported_format(client, admin_token, inquiry_id):
 
 def test_upload_unknown_inquiry(client, admin_token):
     response = client.post(
-        "/v1/inquiries/yok/versions",
+        "/v1/inquiries/missing/versions",
         files={"file": ("x.txt", b"x")},
         headers=_auth(admin_token),
     )
@@ -119,11 +119,11 @@ def test_upload_unknown_inquiry(client, admin_token):
 
 def test_blob_store_is_content_addressed_and_immutable(tmp_path):
     store = LocalBlobStore(str(tmp_path))
-    first = store.put("a.txt", "aynı".encode("utf-8"))
-    second = store.put("b.txt", "aynı".encode("utf-8"))
+    first = store.put("a.txt", "same".encode("utf-8"))
+    second = store.put("b.txt", "same".encode("utf-8"))
     assert first.file_id == second.file_id
-    assert store.get(first.file_id) == "aynı".encode("utf-8")
+    assert store.get(first.file_id) == "same".encode("utf-8")
     with pytest.raises(KeyError):
-        store.get("../kacis")
+        store.get("../escape")
     with pytest.raises(KeyError):
         store.get("0" * 64)

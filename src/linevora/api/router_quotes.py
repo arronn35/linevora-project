@@ -1,4 +1,4 @@
-"""Adım 7 API yüzeyleri: fiyat/şart sürümleri, teklif ve onay akışı."""
+"""Quote API surfaces: price/terms versions, quotes and the approval flow."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def _quote_or_404(quotes: QuoteStore, quote_id: str) -> Quote:
     try:
         return quotes.get(quote_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="teklif yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="quote not found")
 
 
 def _version_no(inquiries: InquiryStore, inquiry_id: str, version_id: str) -> int | None:
@@ -66,7 +66,7 @@ def _version_no(inquiries: InquiryStore, inquiry_id: str, version_id: str) -> in
 def _resolve_lines(requirements, catalog, prices, version, raw_lines):
     if not raw_lines:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="en az bir kalem gerekli"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="at least one line is required"
         )
     known = {item.id: item for item in requirements.list_for_version(version.id)}
     drafts = []
@@ -75,24 +75,24 @@ def _resolve_lines(requirements, catalog, prices, version, raw_lines):
         if requirement is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="gereksinim bu sürümde yok",
+                detail="requirement not in this version",
             )
         try:
             product = catalog.get(item.product_id)
         except KeyError:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="ürün yok"
+                status_code=status.HTTP_404_NOT_FOUND, detail="product not found"
             )
         price = prices.effective_for_product(product.id)
         if price is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{product.code} için yürürlükte fiyat yok",
+                detail=f"no active price for {product.code}",
             )
         quantity = item.quantity if item.quantity is not None else requirement.quantity
         if quantity is None or quantity <= 0:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="miktar geçersiz"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="invalid quantity"
             )
         drafts.append(
             {
@@ -167,10 +167,10 @@ def create_price(
     try:
         catalog.get(body.product_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ürün yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="product not found")
     if body.price <= 0 or not body.currency.strip():
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="fiyat geçersiz"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="invalid price"
         )
     version = prices.create(
         product_id=body.product_id, price=body.price, currency=body.currency.strip()
@@ -191,7 +191,7 @@ def activate_price(
         version = prices.activate(version_id)
     except KeyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="fiyat sürümü yok"
+            status_code=status.HTTP_404_NOT_FOUND, detail="price version not found"
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -252,7 +252,7 @@ def activate_terms(
         version = terms.activate(version_id)
     except KeyError:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="şart sürümü yok"
+            status_code=status.HTTP_404_NOT_FOUND, detail="terms version not found"
         )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
@@ -306,18 +306,18 @@ def build_quote(
     open_mandatory = [
         gap
         for gap in gaps.list_for_version(version.id)
-        if gap.severity == "zorunlu" and gap.status == "açık"
+        if gap.severity == "mandatory" and gap.status == "open"
     ]
     if open_mandatory:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{len(open_mandatory)} zorunlu eksik bilgi açıkken teklif kurulamaz",
+            detail=f"cannot build a quote while {len(open_mandatory)} mandatory gap(s) are open",
         )
     drafts = _resolve_lines(requirements, catalog, prices, version, body.lines)
     effective_terms = terms.effective()
     if effective_terms is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="yürürlükte şart yok"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="no active terms"
         )
     quote = quotes.create(
         inquiry_id=inquiry_id,
@@ -356,15 +356,15 @@ def edit_lines(
     lines: QuoteLineStore = request.app.state.line_store
     audit: AuditStore = request.app.state.audit_store
     quote = _quote_or_404(quotes, quote_id)
-    if quote.status != "taslak":
+    if quote.status != "draft":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="yalnızca taslak düzenlenir",
+            detail="only a draft can be edited",
         )
     versions = inquiries.list_versions(quote.inquiry_id)
     version = next((v for v in versions if v.id == quote.version_id), None)
     if version is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="sürüm yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="version not found")
     drafts = _resolve_lines(requirements, catalog, prices, version, body.lines)
     lines.delete_for_quote(quote.id)
     for draft in drafts:
@@ -407,7 +407,7 @@ def list_quotes(
     try:
         inquiries.get_inquiry(inquiry_id)
     except KeyError:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="talep yok")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="inquiry not found")
     return {
         "quotes": [
             {
@@ -431,11 +431,11 @@ def submit_quote(
     quotes: QuoteStore = request.app.state.quote_store
     audit: AuditStore = request.app.state.audit_store
     quote = _quote_or_404(quotes, quote_id)
-    if quote.status != "taslak":
+    if quote.status != "draft":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="yalnızca taslak sunulur"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="only a draft can be submitted"
         )
-    quote.status = "incelemede"
+    quote.status = "in_review"
     quotes.update(quote)
     audit.append(actor=user["subject"], action="quote.submit", target=f"quote:{quote.id}")
     return _detail(request, quote)
@@ -450,11 +450,11 @@ def return_quote(
     quotes: QuoteStore = request.app.state.quote_store
     audit: AuditStore = request.app.state.audit_store
     quote = _quote_or_404(quotes, quote_id)
-    if quote.status != "incelemede":
+    if quote.status != "in_review":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="yalnızca incelemedeki iade edilir"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="only a quote in review can be returned"
         )
-    quote.status = "taslak"
+    quote.status = "draft"
     quotes.update(quote)
     audit.append(actor=user["subject"], action="quote.return", target=f"quote:{quote.id}")
     return _detail(request, quote)
@@ -469,11 +469,11 @@ def approve_quote(
     quotes: QuoteStore = request.app.state.quote_store
     audit: AuditStore = request.app.state.audit_store
     quote = _quote_or_404(quotes, quote_id)
-    if quote.status != "incelemede":
+    if quote.status != "in_review":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="yalnızca incelemedeki onaylanır"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="only a quote in review can be approved"
         )
-    quote.status = "onaylandı"
+    quote.status = "approved"
     quote.approved_by = user["subject"]
     quote.approved_at = time.time()
     quotes.update(quote)
@@ -494,17 +494,17 @@ def _export_document(
     lines: QuoteLineStore = request.app.state.line_store
     audit: AuditStore = request.app.state.audit_store
     quote = _quote_or_404(quotes, quote_id)
-    if quote.status not in ("onaylandı", "dışa aktarıldı"):
+    if quote.status not in ("approved", "exported"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="onaylanmadan dışa aktarılmaz",
+            detail="cannot export before approval",
         )
     try:
         terms_version = terms.get(quote.terms_version_id)
     except KeyError:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="sabitlenen şart sürümü bulunamadı",
+            detail="pinned terms version not found",
         )
     inquiry = inquiries.get_inquiry(quote.inquiry_id)
     totals: dict[str, float] = {}
@@ -525,7 +525,7 @@ def _export_document(
             }
         )
     if mark_exported:
-        quote.status = "dışa aktarıldı"
+        quote.status = "exported"
         quotes.update(quote)
         audit.append(actor=user["subject"], action="quote.export", target=f"quote:{quote.id}")
     else:
@@ -584,6 +584,6 @@ def export_quote_pdf(
         content=render_quote_pdf(document),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="teklif-{quote_id}.pdf"'
+            "Content-Disposition": f'attachment; filename="quote-{quote_id}.pdf"'
         },
     )

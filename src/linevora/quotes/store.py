@@ -1,5 +1,5 @@
-"""Teklif depoları. MVP gerçeklemesi bellek içidir; kalıcı gerçekleme
-Adım 8'de yönetilen veritabanıyla bu arayüzlerin arkasına geçer.
+"""Quote stores. The MVP implementation is in-memory; the persistent
+implementation moves behind these interfaces with a managed database.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ class PriceStore(Protocol):
         ...
 
     def activate(self, version_id: str) -> PriceVersion:
-        """Taslağı yürürlüğe alır; önceki yürürlükteki sürümü arşivler."""
+        """Activates the draft; archives the previously active version."""
         ...
 
 
@@ -122,7 +122,7 @@ class InMemoryPriceStore:
     def effective_for_product(self, product_id: str) -> PriceVersion | None:
         with self._lock:
             for item in self._items.values():
-                if item.product_id == product_id and item.status == "yürürlükte":
+                if item.product_id == product_id and item.status == "active":
                     return item
             return None
 
@@ -132,16 +132,16 @@ class InMemoryPriceStore:
                 version = self._items[version_id]
             except KeyError:
                 raise KeyError(version_id)
-            if version.status != "taslak":
-                raise ValueError("yalnızca taslak yürürlüğe alınır")
+            if version.status != "draft":
+                raise ValueError("only a draft can be activated")
             for key, item in self._items.items():
-                if item.product_id == version.product_id and item.status == "yürürlükte":
+                if item.product_id == version.product_id and item.status == "active":
                     self._items[key] = PriceVersion(
                         id=item.id,
                         product_id=item.product_id,
                         price=item.price,
                         currency=item.currency,
-                        status="arşiv",
+                        status="archived",
                         created_at=item.created_at,
                     )
             activated = PriceVersion(
@@ -149,7 +149,7 @@ class InMemoryPriceStore:
                 product_id=version.product_id,
                 price=version.price,
                 currency=version.currency,
-                status="yürürlükte",
+                status="active",
                 created_at=version.created_at,
             )
             self._items[version.id] = activated
@@ -191,7 +191,7 @@ class InMemoryTermsStore:
     def effective(self) -> TermsVersion | None:
         with self._lock:
             for item in self._items.values():
-                if item.status == "yürürlükte":
+                if item.status == "active":
                     return item
             return None
 
@@ -201,22 +201,22 @@ class InMemoryTermsStore:
                 version = self._items[version_id]
             except KeyError:
                 raise KeyError(version_id)
-            if version.status != "taslak":
-                raise ValueError("yalnızca taslak yürürlüğe alınır")
+            if version.status != "draft":
+                raise ValueError("only a draft can be activated")
             for key, item in self._items.items():
-                if item.status == "yürürlükte":
+                if item.status == "active":
                     self._items[key] = TermsVersion(
                         id=item.id,
                         name=item.name,
                         text=item.text,
-                        status="arşiv",
+                        status="archived",
                         created_at=item.created_at,
                     )
             activated = TermsVersion(
                 id=version.id,
                 name=version.name,
                 text=version.text,
-                status="yürürlükte",
+                status="active",
                 created_at=version.created_at,
             )
             self._items[version.id] = activated
@@ -356,7 +356,7 @@ def seed_demo_prices(store: PriceStore, products: list[Product]) -> None:
 
 def seed_demo_terms(store: TermsStore) -> None:
     version = store.create(
-        name="Standart Satış Şartları",
-        text="Ödeme: siparişle %50, teslimde %50. Teslimat: EXW. Teklif geçerliliği: 30 gün.",
+        name="Standard Sales Terms",
+        text="Payment: 50% with order, 50% on delivery. Delivery: EXW. Quote validity: 30 days.",
     )
     store.activate(version.id)

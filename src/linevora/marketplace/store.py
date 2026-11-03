@@ -1,11 +1,11 @@
-"""Pazar yeri depoları.
+"""Marketplace stores.
 
-Desen mevcut store'larla aynıdır: bellek içi + ``threading.Lock`` +
-``deepcopy`` + ``to_snapshot``/``load_snapshot``; böylece
-``persistence.wrap_store`` ile (namespace verilerek) sarılabilir.
-Yayımlama ve teklif gönderimi kullanıcı onayı (``confirmed=True``)
-olmadan yapılamaz. Rakip teklifler birbirini görmez: sahip olmayan
-izleyici yalnızca kendi tekliflerini listeler.
+The pattern matches the existing stores: in-memory + ``threading.Lock`` +
+``deepcopy`` + ``to_snapshot``/``load_snapshot``, so they can be wrapped
+with ``persistence.wrap_store`` (with a namespace). Publishing a listing
+and submitting an offer cannot be done without user approval
+(``confirmed=True``). Competing offers never see each other: a non-owner
+viewer lists only their own offers.
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def _snapshot_items(data: Any) -> list[dict]:
         items = data.get("items")
         if isinstance(items, list):
             return items
-        # Eski/serbest biçim: tek kayıt listesi.
+        # Legacy/free form: a single record list.
         for key in ("listings", "offers", "agreements", "messages", "notifications"):
             if isinstance(data.get(key), list):
                 return data[key]
@@ -144,11 +144,11 @@ class InMemoryListingStore:
 
     def publish(self, listing_id: str, confirmed: bool = False) -> Listing:
         if not confirmed:
-            raise ValueError("yayımlama için kullanıcı onayı gerekli")
+            raise ValueError("user approval is required to publish")
         with self._lock:
             listing = self._get_locked(listing_id)
             if listing.status != "draft":
-                raise ValueError("yalnızca taslak ilan yayımlanır")
+                raise ValueError("only a draft listing can be published")
             listing.status = "published"
             listing.updated_at = time.time()
             return copy.deepcopy(listing)
@@ -232,9 +232,10 @@ class InMemoryOfferStore:
     def list_for_listing(self, listing_id: str, viewer_user: str | None = None,
                          viewer_company_id: str | None = None,
                          listing_owner_user: str | None = None) -> list[Offer]:
-        """Rakip gizliliği: sahip olmayan izleyici yalnızca kendisininkini görür.
+        """Competitor privacy: a non-owner viewer sees only their own.
 
-        ``viewer_user`` verilmezse güvenilir iç çağrı sayılır ve tümü döner.
+        When ``viewer_user`` is omitted, the call is treated as a trusted
+        internal call and everything is returned.
         """
         with self._lock:
             offers = [o for o in self._items.values() if o.listing_id == listing_id]
@@ -253,7 +254,7 @@ class InMemoryOfferStore:
             ])
 
     def compare(self, listing_id: str) -> list[Offer]:
-        """Alıcının karşılaştırması: gönderilmiş teklifler toplam tutara göre."""
+        """The buyer's comparison: submitted offers by total amount."""
         with self._lock:
             offers = [
                 o for o in self._items.values()
@@ -271,11 +272,11 @@ class InMemoryOfferStore:
 
     def submit(self, offer_id: str, confirmed: bool = False) -> Offer:
         if not confirmed:
-            raise ValueError("gönderim için kullanıcı onayı gerekli")
+            raise ValueError("user approval is required to submit")
         with self._lock:
             offer = self._get_locked(offer_id)
             if offer.status not in ("draft", "revision_requested"):
-                raise ValueError("yalnızca taslak/revize bekleyen teklif gönderilir")
+                raise ValueError("only a draft or revision-pending offer can be submitted")
             offer.status = "submitted"
             offer.updated_at = time.time()
             return copy.deepcopy(offer)
@@ -284,7 +285,7 @@ class InMemoryOfferStore:
         with self._lock:
             offer = self._get_locked(offer_id)
             if offer.status != "submitted":
-                raise ValueError("yalnızca gönderilmiş tekliften revize istenir")
+                raise ValueError("a revision can only be requested on a submitted offer")
             offer.status = "revision_requested"
             if note:
                 offer.note = note
@@ -317,11 +318,11 @@ class InMemoryOfferStore:
 
     def select(self, offer_id: str, confirmed: bool = False) -> Offer:
         if not confirmed:
-            raise ValueError("seçim için kullanıcı onayı gerekli")
+            raise ValueError("user approval is required to select")
         with self._lock:
             offer = self._get_locked(offer_id)
             if offer.status not in ("submitted", "revision_requested"):
-                raise ValueError("yalnızca gönderilmiş teklif seçilir")
+                raise ValueError("only a submitted offer can be selected")
             offer.status = "selected"
             offer.updated_at = time.time()
             for other in self._items.values():
@@ -533,17 +534,19 @@ def select_offer(
     *,
     confirmed: bool = False,
 ) -> Agreement:
-    """Alıcı bir teklifi seçer: teklif seçilir, ilan ödüllenir, anlaşma doğar.
+    """The buyer selects an offer: the offer is selected, the listing is
+    awarded, and an agreement is created.
 
-    Ödeme/lojistik kapsam dışıdır; anlaşma yalnızca seçimin kaydıdır.
+    Payment/logistics are out of scope; the agreement is only a record
+    of the selection.
     """
     if not confirmed:
-        raise ValueError("seçim için kullanıcı onayı gerekli")
+        raise ValueError("user approval is required to select")
     listing = listing_store.get(listing_id)
     offer = offer_store.get(offer_id)
     if offer.listing_id != listing_id:
-        raise ValueError("teklif bu ilana ait değil")
-    # demand: alıcı ilan sahibi, satıcı teklif veren; supply: tersi.
+        raise ValueError("the offer does not belong to this listing")
+    # demand: the buyer is the listing owner, the seller is the offerer; supply: the reverse.
     if listing.kind == "demand":
         buyer_user, buyer_company = listing.owner_user, listing.company_id
         seller_user, seller_company = offer.offerer_user, offer.offerer_company_id

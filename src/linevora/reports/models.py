@@ -1,4 +1,4 @@
-"""Rapor kayıtları: eksik bilgi ve alternatif önerisi."""
+"""Report records: missing information and alternative suggestions."""
 
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ class InformationGap:
     requirement_id: str
     field: str
     question: str
-    severity: str = "zorunlu"  # zorunlu | bilgi
-    status: str = "açık"
+    severity: str = "mandatory"  # mandatory | info
+    status: str = "open"
     answer: str = ""
 
 
@@ -34,4 +34,4 @@ class Alternative:
     score: float
     comparison: tuple[ComparisonRow, ...] = ()
     reasons: tuple[str, ...] = ()
-    status: str = "bekliyor"
+    status: str = "pending"

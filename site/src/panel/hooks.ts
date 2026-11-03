@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Belirli aralıkla yenilenen veri kancası; sekme gizliyken duraklar. */
+/** Data hook refreshed at a fixed interval; pauses while the tab is hidden. */
 export function usePolling<T>(fn: () => Promise<T>, intervalMs: number, enabled = true) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);

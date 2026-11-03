@@ -1,4 +1,4 @@
-"""Katalog ürün kaydı (veri modelindeki Ürün)."""
+"""Catalog product record (Product in the data model)."""
 
 from __future__ import annotations
 
@@ -13,4 +13,4 @@ class Product:
     names: tuple[str, ...]
     synonyms: tuple[str, ...] = ()
     features: dict[str, Any] = field(default_factory=dict)
-    unit: str = "adet"
+    unit: str = "pcs"

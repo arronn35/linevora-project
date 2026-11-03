@@ -1,4 +1,4 @@
-"""Alternatif önerisi: birebir eşleşme yoksa ölçüt karşılaştırmalı adaylar."""
+"""Alternative suggestions: criterion-compared candidates when there is no exact match."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _norm(value: Any) -> str:
 def compare(requirement: Requirement, product: Product) -> list[ComparisonRow]:
     rows = [
         ComparisonRow(
-            criterion="ürün adı",
+            criterion="product name",
             wanted=requirement.product_type,
             offered=", ".join(product.names),
             match=bool(tokens(requirement.product_type) & tokens(" ".join(product.names))),
@@ -38,7 +38,7 @@ def compare(requirement: Requirement, product: Product) -> list[ComparisonRow]:
         offered = product.features.get(key)
         rows.append(
             ComparisonRow(
-                criterion=f"özellik:{key}",
+                criterion=f"feature:{key}",
                 wanted=wanted,
                 offered=offered,
                 match=offered is not None and _norm(offered) == _norm(wanted),
@@ -47,7 +47,7 @@ def compare(requirement: Requirement, product: Product) -> list[ComparisonRow]:
     if requirement.unit:
         rows.append(
             ComparisonRow(
-                criterion="birim",
+                criterion="unit",
                 wanted=requirement.unit,
                 offered=product.unit,
                 match=_norm(product.unit) == _norm(requirement.unit),
@@ -59,7 +59,7 @@ def compare(requirement: Requirement, product: Product) -> list[ComparisonRow]:
 def build_alternatives(
     requirement: Requirement, scored: list[ScoredProduct]
 ) -> list[AlternativeDraft]:
-    """En iyi aday birebir sayılırsa alternatif üretilmez."""
+    """If the best candidate counts as exact, no alternative is produced."""
     if any(item.score >= EXACT_THRESHOLD for item in scored):
         return []
     return [

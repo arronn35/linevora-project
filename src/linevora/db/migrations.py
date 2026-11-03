@@ -1,8 +1,8 @@
-"""Sürümli şema migration'ları (stdlib sqlite3; PostgreSQL DDL'i de üretilir).
+"""Versioned schema migrations (stdlib sqlite3; PostgreSQL DDL is also generated).
 
-Migration listesi yalnızca eklemelidir: mevcut bir sürümün SQL'i asla
-değiştirilmez, düzeltme yeni sürümle gelir. Uygulanan sürümler
-``schema_migrations`` tablosuna yazılır; runner idempotenttir.
+The migration list is append-only: the SQL of an existing version is never
+changed; a fix arrives as a new version. Applied versions are written to
+the ``schema_migrations`` table; the runner is idempotent.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ MIGRATIONS: list[tuple[int, str]] = [
     ),
 ]
 
-# Aynı şemanın PostgreSQL karşılığı (yönetilen RDBMS geçişinde kullanılır).
+# The PostgreSQL counterpart of the same schema (used when moving to a managed RDBMS).
 POSTGRES_DDL = """
 CREATE TABLE IF NOT EXISTS store_snapshots (
     namespace TEXT PRIMARY KEY,
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 
 def apply_migrations(conn: sqlite3.Connection) -> list[int]:
-    """Bekleyen migration'ları sırayla uygular, uygulanan sürümleri döndürür."""
+    """Applies pending migrations in order; returns the applied versions."""
     conn.execute(
         "CREATE TABLE IF NOT EXISTS schema_migrations "
         "(version INTEGER PRIMARY KEY, applied_at REAL NOT NULL)"
@@ -79,9 +79,9 @@ def apply_migrations(conn: sqlite3.Connection) -> list[int]:
 
 
 def parse_db_url(url: str) -> tuple[str, str]:
-    """``(sürücü, yol)`` döndürür: sqlite yolu veya postgres DSN'i."""
+    """Returns ``(driver, target)``: a sqlite path or a postgres DSN."""
     if url.startswith("sqlite:///"):
         return "sqlite", url[len("sqlite:///") :]
     if url.startswith(("postgresql://", "postgres://")):
         return "postgresql", url
-    raise ValueError(f"desteklenmeyen LINEVORA_DB_URL: {url!r}")
+    raise ValueError(f"unsupported LINEVORA_DB_URL: {url!r}")

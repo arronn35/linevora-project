@@ -1,4 +1,4 @@
-"""Uygulama yapılandırması (ortam değişkenleri)."""
+"""Application configuration (environment variables)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
-DEFAULT_USERS = "admin:admin123:admin,uzman:uzman123:specialist,izleyici:izleyici123:viewer"
+DEFAULT_USERS = "admin:admin123:admin,specialist:specialist123:specialist,viewer:viewer123:viewer"
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,7 @@ class Settings:
     env: str  # dev | prod
     secret_key: str
     token_ttl_seconds: int
-    users: dict[str, tuple[str, str, str]]  # kullanıcı adı -> (parola, rol, tenant)
+    users: dict[str, tuple[str, str, str]]  # username -> (password, role, tenant)
     blob_dir: str
     snapshot_path: str
     db_path: str = ""
@@ -40,11 +40,11 @@ def _parse_users(raw: str) -> dict[str, tuple[str, str, str]]:
         parts = item.split(":")
         if len(parts) not in (3, 4) or not all(parts):
             raise ValueError(
-                f"geçersiz kullanıcı kaydı: {item!r} (biçim: ad:parola:rol[:tenant])"
+                f"invalid user record: {item!r} (format: name:password:role[:tenant])"
             )
         users[parts[0]] = (parts[1], parts[2], parts[3] if len(parts) == 4 else "default")
     if not users:
-        raise ValueError("en az bir kullanıcı tanımlanmalı")
+        raise ValueError("at least one user must be defined")
     return users
 
 
@@ -52,7 +52,7 @@ def _parse_users(raw: str) -> dict[str, tuple[str, str, str]]:
 def get_settings() -> Settings:
     env = os.environ.get("LINEVORA_ENV", "dev")
     if env not in ("dev", "prod"):
-        raise ValueError("LINEVORA_ENV dev ya da prod olmalı")
+        raise ValueError("LINEVORA_ENV must be dev or prod")
     secret_key = os.environ.get("LINEVORA_SECRET_KEY", "dev-secret-change-me")
     users_raw = os.environ.get("LINEVORA_USERS", DEFAULT_USERS)
     db_path = os.environ.get("LINEVORA_DB_PATH", "")
@@ -60,11 +60,11 @@ def get_settings() -> Settings:
     seed_demo = os.environ.get("LINEVORA_SEED_DEMO", "1") not in ("0", "false", "no")
     if env == "prod":
         if secret_key == "dev-secret-change-me":
-            raise RuntimeError("üretimde LINEVORA_SECRET_KEY zorunlu")
+            raise RuntimeError("LINEVORA_SECRET_KEY is required in production")
         if users_raw == DEFAULT_USERS:
-            raise RuntimeError("üretimde LINEVORA_USERS zorunlu")
-        # Kalıcılık ve parola-karması zorunluluğu uygulama açılışında
-        # (create_app) denetlenir; ayar okuma tek başına engellenmez.
+            raise RuntimeError("LINEVORA_USERS is required in production")
+        # The persistence and password-hash requirements are checked at app
+        # startup (create_app); merely reading settings is not blocked.
         seed_demo = False
     return Settings(
         env=env,

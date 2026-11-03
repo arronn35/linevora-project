@@ -1,7 +1,8 @@
-"""Model çıktılarının şema doğrulaması.
+"""Schema validation of model outputs.
 
-Kural: şemaya uymayan yanıt iş hattına girmez. Kaynak işaretçisi
-(page + quote) her gereksinimde zorunludur (değişmez kural 1).
+Rule: a response that does not fit the schema never enters the pipeline.
+A source pointer (page + quote) is required on every requirement
+(invariant rule 1).
 """
 
 from __future__ import annotations
@@ -44,16 +45,16 @@ REQUIREMENTS_SCHEMA: dict[str, Any] = {
 
 
 class SchemaValidationError(Exception):
-    """Model yanıtı ayrıştırılamadı ya da şemaya uymadı."""
+    """The model response could not be parsed or did not fit the schema."""
 
 
 def parse_and_validate(raw: str, schema: dict[str, Any]) -> dict[str, Any]:
     try:
         instance = json.loads(raw)
     except json.JSONDecodeError as exc:
-        raise SchemaValidationError(f"geçersiz JSON: {exc}")
+        raise SchemaValidationError(f"invalid JSON: {exc}")
     try:
         jsonschema.validate(instance, schema)
     except jsonschema.ValidationError as exc:
-        raise SchemaValidationError(f"şema ihlali: {exc.message}")
+        raise SchemaValidationError(f"schema violation: {exc.message}")
     return instance

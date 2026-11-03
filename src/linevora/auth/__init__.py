@@ -1,1 +1,1 @@
-"""Kimlik doğrulama ve yetki."""
+"""Authentication and authorization."""

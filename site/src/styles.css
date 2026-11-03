@@ -1,5 +1,5 @@
 :root {
-  /* tokens.ts ile aynı kimlik: bone/ink/signal korunur, serif marka imzasında */
+  /* Same identity as tokens.ts: bone/ink/signal preserved, serif for the brand signature */
   --bone: #ecebe4; --paper: #f6f5ef; --white: #fff;
   --surface-app: #ecebe4; --surface-card: #f6f5ef; --surface-raised: #fff; --surface-sunken: #e3e1d8;
   --ink: #0e0f10; --ink-soft: #2d2e2c; --mute: #6d6e68; --faint: #8a8b84;

@@ -1,7 +1,7 @@
-"""Embedding sağlayıcı soyutlaması.
+"""Embedding provider abstraction.
 
-Varsayılan: yerel hashing gömmesi (servissiz). ``LINEVORA_EMBEDDING_URL``
-verilirse OpenAI-uyumlu ``/embeddings`` ucu kullanılır:
+Default: local hashing embeddings (no service). When ``LINEVORA_EMBEDDING_URL``
+is given, an OpenAI-compatible ``/embeddings`` endpoint is used:
 ``{model, input}`` → ``data[0].embedding``.
 """
 
@@ -21,7 +21,7 @@ class Embedder(Protocol):
 
 
 class HashingEmbedder:
-    """Yerel, deterministik gömme (dış servis yok)."""
+    """Local, deterministic embedding (no external service)."""
 
     def embed(self, text: str) -> dict[int, float]:
         return _vector(text)
@@ -37,7 +37,7 @@ class HttpEmbedder:
         opener: Callable[..., Any] | None = None,
     ) -> None:
         if not url:
-            raise ValueError("embedding URL gerekli")
+            raise ValueError("an embedding URL is required")
         self._url = url
         self._api_key = api_key
         self._model = model

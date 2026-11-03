@@ -1,0 +1,22 @@
+{
+  "id": "004-pipe",
+  "input_text": "100 meters DN100 stainless steel pipe, wall thickness 3 mm.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "stainless steel pipe",
+        "features": {
+          "DN": "100",
+          "wall_thickness_mm": 3
+        },
+        "quantity": 100,
+        "unit": "meter",
+        "source": {
+          "page": 1,
+          "quote": "100 meters DN100 stainless steel pipe"
+        }
+      }
+    ]
+  },
+  "notes": "Extended eval set (representative historical inquiry)."
+}

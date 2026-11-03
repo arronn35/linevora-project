@@ -1,4 +1,4 @@
-"""Adım 2 API yüzeyleri: sağlık, belirteç, kendini görme, denetim okuma."""
+"""Core API surfaces: health, token, who-am-I, audit reading."""
 
 from __future__ import annotations
 
@@ -54,7 +54,7 @@ def readiness(request: Request) -> dict[str, object]:
         checks["jobs"] = False
     ready = all(checks.values())
     if not ready:
-        raise HTTPException(status_code=503, detail="hazır değil")
+        raise HTTPException(status_code=503, detail="not ready")
     return {"status": "ready", "checks": checks}
 
 
@@ -72,10 +72,10 @@ def prometheus_metrics(
     for job in jobs.list():
         by_status[job.status] = by_status.get(job.status, 0) + 1
     lines = [
-        "# HELP linevora_http_requests_total HTTP istekleri",
+        "# HELP linevora_http_requests_total HTTP requests",
         "# TYPE linevora_http_requests_total counter",
         f"linevora_http_requests_total {snap.get('total', 0)}",
-        "# HELP linevora_jobs İş durumları",
+        "# HELP linevora_jobs Job statuses",
         "# TYPE linevora_jobs gauge",
     ]
     for job_status, count in sorted(by_status.items()):
@@ -93,11 +93,11 @@ def create_token(body: TokenRequest, request: Request) -> TokenResponse:
         actor=body.username,
         action="auth.token_issue",
         target=f"user:{body.username}",
-        detail="ok" if ok else "hatalı kimlik",
+        detail="ok" if ok else "invalid credentials",
     )
     if not ok or record is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="geçersiz kimlik"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials"
         )
     token = issue_token(settings.secret_key, body.username, [record[1]], settings.token_ttl_seconds, tenant=record[2] if len(record) > 2 else "default")
     return TokenResponse(access_token=token)
@@ -163,7 +163,7 @@ def read_metrics(
         },
         "quotes": {
             "by_status": quotes_by_status,
-            "exported": quotes_by_status.get("dışa aktarıldı", 0),
+            "exported": quotes_by_status.get("exported", 0),
             "avg_approval_seconds": (
                 round(sum(approval_durations) / len(approval_durations), 1)
                 if approval_durations
@@ -203,7 +203,7 @@ def save_snapshot(
     manager = request.app.state.snapshot
     if manager is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="snapshot yapılandırılmamış"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="snapshot not configured"
         )
     store: AuditStore = request.app.state.audit_store
     path = manager.save()
@@ -221,7 +221,7 @@ def set_demo_model(
 ) -> dict[str, object]:
     if get_settings().env != "dev":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="yalnızca dev"
+            status_code=status.HTTP_403_FORBIDDEN, detail="dev only"
         )
     request.app.state.model_client = FakeModelClient(body.scripts)
     store: AuditStore = request.app.state.audit_store

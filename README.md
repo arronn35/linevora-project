@@ -1,9 +1,9 @@
 # Linevora
 
-Endüstriyel taleplerden teklife (inquiry-to-quote) giden akışın MVP iskeleti.
-Mimari: `docs/architecture/README.md`, veri modeli: `docs/architecture/data-model.md`.
+MVP skeleton of the inquiry-to-quote flow for industrial requests.
+Architecture: `docs/architecture/README.md`; data model: `docs/architecture/data-model.md`.
 
-## Kurulum
+## Setup
 
 ```sh
 python3 -m venv .venv
@@ -11,7 +11,7 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-## Çalıştırma
+## Running
 
 ```sh
 source .venv/bin/activate
@@ -20,86 +20,89 @@ python -m uvicorn linevora.main:app --reload
 
 API: `http://127.0.0.1:8000/v1/health`
 
-## Testler
+## Tests
 
 ```sh
 source .venv/bin/activate
 pytest -q
 ```
 
-## Eval Kapısı
+## Eval Gate
 
 ```sh
 source .venv/bin/activate
 python eval/run_eval.py --cases eval/cases --extractor perfect --min-score 0.8
 ```
 
-Eşik tutmazsa çıkış kodu 1 olur. `perfect`/`empty` çıkarıcılar koşum
-takımının kendini sınaması içindir; `scripted` gerçek çıkarıcı kod yolunu
-betiklenmiş model yanıtlarıyla çalıştırır (tesisat sınaması; gerçek
-doğruluk ölçümü yönetilen model bağdaştırıcısı eklenince aynı koşucuyla yapılır).
+If the threshold is missed, the exit code is 1. The `perfect`/`empty`
+extractors exist for the harness to test itself; `scripted` runs the real
+extractor code path with scripted model responses (a plumbing test; real
+accuracy measurement is done with the same runner once a managed model
+adapter is added).
 
 ## Panel
 
-Arayüz `site/` (React + Vite) içindedir ve FastAPI tarafından tek porttan
-sunulur: `http://127.0.0.1:8000/` vitrin, `http://127.0.0.1:8000/panel`
-operasyon panelidir. Panel; giriş, talepler (sürüm yükleme, işleme,
-öneri/eksik/alternatif/fark/teklif önizleme), katalog, sürümlü
-fiyat/şartlar, canlı izleme ve denetim kaydını içerir.
+The UI lives in `site/` (React + Vite) and is served by FastAPI from a
+single port: `http://127.0.0.1:8000/` is the showcase and
+`http://127.0.0.1:8000/panel` is the operations panel. The panel covers
+sign-in, inquiries (version upload, processing, suggestions / gaps /
+alternatives / diff / quote preview), the catalog, versioned prices and
+terms, live observability and the audit log.
 
-İzleme (yalnızca admin): üstte canlı durum şeridi (sağlık, iş kuyruğu,
-model), İzleme sekmesinde metrik kartları, dead-letter listesi ve canlı
-denetim akışı; veriler 4 saniyede bir, sekme gizliyken duraklayarak
-yenilenir.
+Observability (admin only): a live status strip at the top (health, job
+queue, model); in the Observability tab, metric cards, the dead-letter
+list and the live audit stream; data refreshes every 4 seconds and pauses
+while the tab is hidden.
 
-İlk kurulumda ön yüzü bir kez derleyin (Node gerekir):
+On first setup, build the frontend once (Node required):
 
 ```sh
 cd site && npm install && npm run build && cd ..
 python -m uvicorn linevora.main:app --reload
 ```
 
-Geliştirmede sıcak yenileme isterseniz `cd site && npm run dev`
-(:5173, `/v1` istekleri :8000'e proxy'lenir). `site/dist` yoksa panel
-geriye dönük uyumla paketteki yalın sürüme (`src/linevora/web`) düşer.
-Giriş: `admin` / `admin123` (roller: admin, specialist, viewer).
+For hot reload during development, use `cd site && npm run dev`
+(:5173; `/v1` requests are proxied to :8000). When `site/dist` is absent,
+the panel falls back, for backward compatibility, to the plain version
+bundled in the package (`src/linevora/web`).
+Sign-in: `admin` / `admin123` (roles: admin, specialist, viewer).
 
-## API Yüzeyleri (Adım 2-3)
+## API Surfaces
 
-- `GET /v1/health` — sağlık (açık)
-- `POST /v1/auth/token` — belirteç üretimi
-- `GET /v1/me` — kendini görme
-- `GET /v1/audit` — denetim okuma (yalnızca admin)
-- `POST /v1/inquiries` — talep açma (admin/uzman)
-- `POST /v1/inquiries/{id}/versions` — sürüm yükleme (admin/uzman)
-- `GET /v1/inquiries/{id}/versions` — sürüm listeleme
-- `POST /v1/inquiries/{id}/versions/{v}/process` — gereksinim çıkarma + eşleştirme işi (admin/uzman)
-- `GET /v1/jobs/{job}` — iş durumu
-- `GET /v1/inquiries/{id}/versions/{v}/suggestions` — gereksinimler ve skorlu öneriler
-- `GET /v1/inquiries/{id}/versions/{v}/gaps` — eksik bilgi listesi
-- `GET /v1/inquiries/{id}/versions/{a}/diff/{b}` — sürüm fark raporu
-- `GET /v1/inquiries/{id}/versions/{v}/alternatives` — ölçüt karşılaştırmalı alternatifler
-- `GET/POST /v1/products`, `GET/POST /v1/prices`, `POST /v1/prices/{id}/activate` — katalog ve sürümlü fiyatlar
-- `GET/POST /v1/terms`, `POST /v1/terms/{id}/activate` — sürümlü şartlar
-- `POST /v1/inquiries/{id}/versions/{v}/quotes` — teklif taslağı
-- `GET /v1/quotes/{id}`, `PUT /v1/quotes/{id}/lines` — teklif okuma ve taslak düzenleme
-- `POST /v1/quotes/{id}/submit|return|approve`, `GET /v1/quotes/{id}/export` — onay akışı
-- `GET /v1/metrics`, `POST /v1/admin/snapshot` — ölçümler ve anlık görüntü (yalnızca admin)
+- `GET /v1/health` — health (public)
+- `POST /v1/auth/token` — token issuing
+- `GET /v1/me` — who am I
+- `GET /v1/audit` — audit reading (admin only)
+- `POST /v1/inquiries` — open an inquiry (admin/specialist)
+- `POST /v1/inquiries/{id}/versions` — upload a version (admin/specialist)
+- `GET /v1/inquiries/{id}/versions` — list versions
+- `POST /v1/inquiries/{id}/versions/{v}/process` — requirement extraction + matching job (admin/specialist)
+- `GET /v1/jobs/{job}` — job status
+- `GET /v1/inquiries/{id}/versions/{v}/suggestions` — requirements and scored suggestions
+- `GET /v1/inquiries/{id}/versions/{v}/gaps` — missing-information list
+- `GET /v1/inquiries/{id}/versions/{a}/diff/{b}` — version diff report
+- `GET /v1/inquiries/{id}/versions/{v}/alternatives` — criterion-compared alternatives
+- `GET/POST /v1/products`, `GET/POST /v1/prices`, `POST /v1/prices/{id}/activate` — catalog and versioned prices
+- `GET/POST /v1/terms`, `POST /v1/terms/{id}/activate` — versioned terms
+- `POST /v1/inquiries/{id}/versions/{v}/quotes` — quote draft
+- `GET /v1/quotes/{id}`, `PUT /v1/quotes/{id}/lines` — reading a quote and editing a draft
+- `POST /v1/quotes/{id}/submit|return|approve`, `GET /v1/quotes/{id}/export` — approval flow
+- `GET /v1/metrics`, `POST /v1/admin/snapshot` — metrics and snapshots (admin only)
 
-İşletim (yedekleme, güvenlik, pilot kabulü): `docs/operations.md`.
+Operations (backup, security, pilot acceptance): `docs/operations.md`.
 
-## Yapılandırma (ortam değişkenleri)
+## Configuration (environment variables)
 
-- `LINEVORA_SECRET_KEY`: belirteç imza anahtarı (üretimde zorunlu, güçlü değer).
-- `LINEVORA_TOKEN_TTL`: belirteç ömrü, saniye (varsayılan 3600).
-- `LINEVORA_USERS`: `kullanıcı:parola:rol,...` biçiminde kullanıcılar.
-  Varsayılan (yalnızca geliştirme): `admin:admin123:admin,uzman:uzman123:specialist,izleyici:izleyici123:viewer`.
-- `LINEVORA_ENV`: `dev` ya da `prod` (varsayılan `dev`).
-- `LINEVORA_BLOB_DIR`: dosya deposu dizini (varsayılan `var/blobs`).
-- `LINEVORA_SNAPSHOT_PATH`: anlık görüntü dosyası (verilmezse snapshot kapalı).
-- `LINEVORA_DB_PATH`: SQLite kalıcılık dosyası (örn. `var/linevora.db`). Verilirse tüm kayıtlar yeniden başlatmada korunur; verilmezse bellek içi.
-- `LINEVORA_MODEL_URL` / `LINEVORA_MODEL_API_KEY` / `LINEVORA_MODEL_NAME` / `LINEVORA_MODEL_TIMEOUT`: yönetilen model servisi (OpenAI-uyumlu chat ucu). `URL` boşsa sahte istemci kullanılır.
-- `LINEVORA_MATCHER`: `lexical` (varsayılan), `vector` ya da `hybrid`.
-- `LINEVORA_RATE_LIMIT_PER_MINUTE`: token ucu hız sınırı (varsayılan 60).
-- Parola alanında `pbkdf2_sha256$...` karması da kabul edilir: `python -c "from linevora.auth.passwords import hash_password; print(hash_password('parola'))"`.
-- Onaylı teklif PDF'i: `GET /v1/quotes/{id}/export.pdf`. Belirteç iptali: `POST /v1/auth/revoke`.
+- `LINEVORA_SECRET_KEY`: token signing key (required in production; use a strong value).
+- `LINEVORA_TOKEN_TTL`: token lifetime in seconds (default 3600).
+- `LINEVORA_USERS`: users in `user:password:role,...` form.
+  Default (development only): `admin:admin123:admin,specialist:specialist123:specialist,viewer:viewer123:viewer`.
+- `LINEVORA_ENV`: `dev` or `prod` (default `dev`).
+- `LINEVORA_BLOB_DIR`: file store directory (default `var/blobs`).
+- `LINEVORA_SNAPSHOT_PATH`: snapshot file (when unset, snapshots are disabled).
+- `LINEVORA_DB_PATH`: SQLite persistence file (e.g. `var/linevora.db`). When set, all records survive restarts; otherwise state is in-memory.
+- `LINEVORA_MODEL_URL` / `LINEVORA_MODEL_API_KEY` / `LINEVORA_MODEL_NAME` / `LINEVORA_MODEL_TIMEOUT`: managed model service (OpenAI-compatible chat endpoint). When `URL` is empty, the fake client is used.
+- `LINEVORA_MATCHER`: `lexical` (default), `vector`, or `hybrid`.
+- `LINEVORA_RATE_LIMIT_PER_MINUTE`: rate limit for the token endpoint (default 60).
+- A `pbkdf2_sha256$...` hash is also accepted in the password field: `python -c "from linevora.auth.passwords import hash_password; print(hash_password('password'))"`.
+- Approved-quote PDF: `GET /v1/quotes/{id}/export.pdf`. Token revocation: `POST /v1/auth/revoke`.

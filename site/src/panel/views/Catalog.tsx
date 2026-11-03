@@ -5,32 +5,32 @@ import { Hint, Pill } from "../ui";
 export function CatalogView({ user, notify }: { user: User; notify: (m: string, k?: "ok" | "err") => void }) {
   const admin = isAdmin(user);
   const [products, setProducts] = useState<Product[]>([]);
-  const [form, setForm] = useState({ code: "", names: "", unit: "adet" });
+  const [form, setForm] = useState({ code: "", names: "", unit: "pcs" });
   async function load() { setProducts((await api.products()).products); }
   useEffect(() => { void load().catch((e) => notify((e as Error).message)); }, [notify]);
   return (
     <div className="p-card">
-      <h3>Ürünler</h3>
-      <Hint>Eşanlamlılar çok önemlidir: müşteri ürünü başka isimle anarsa eşleşme buradan gelir. Kodu bir kez yazarsınız; adlar virgülle ayrılır.</Hint>
-      <table><thead><tr><th>Kod</th><th>Adlar</th><th>Özellikler</th><th>Birim</th></tr></thead><tbody>
+      <h3>Products</h3>
+      <Hint>Synonyms matter a lot: if the customer calls the product by another name, the match comes from here. You write the code once; names are comma-separated.</Hint>
+      <table><thead><tr><th>Code</th><th>Names</th><th>Features</th><th>Unit</th></tr></thead><tbody>
         {products.map((p) => (
           <tr key={p.id}><td><b>{p.code}</b></td>
-            <td>{p.names.join(", ")}{p.synonyms.length ? <><br /><span className="p-muted">eş: {p.synonyms.join(", ")}</span></> : null}</td>
+            <td>{p.names.join(", ")}{p.synonyms.length ? <><br /><span className="p-muted">syn: {p.synonyms.join(", ")}</span></> : null}</td>
             <td>{Object.entries(p.features || {}).map(([k, v]) => `${k}=${String(v)}`).join(", ")}</td><td>{p.unit}</td></tr>
         ))}
       </tbody></table>
       {admin && (
         <>
-          <h4>Yeni Ürün</h4>
+          <h4>New Product</h4>
           <form className="p-inline" onSubmit={async (e) => {
             e.preventDefault();
-            try { await api.createProduct(form.code.trim(), form.names.split(",").map((s) => s.trim()).filter(Boolean), form.unit.trim() || "adet"); setForm({ code: "", names: "", unit: "adet" }); await load(); notify("Ürün eklendi.", "ok"); }
+            try { await api.createProduct(form.code.trim(), form.names.split(",").map((s) => s.trim()).filter(Boolean), form.unit.trim() || "pcs"); setForm({ code: "", names: "", unit: "pcs" }); await load(); notify("Product added.", "ok"); }
             catch (err) { notify((err as Error).message); }
           }}>
-            <input placeholder="Kod" required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-            <input placeholder="Adlar (virgülle)" required style={{ minWidth: 220 }} value={form.names} onChange={(e) => setForm({ ...form, names: e.target.value })} />
-            <input placeholder="Birim" style={{ width: 90 }} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-            <button className="p-btn primary" type="submit">Ekle</button>
+            <input placeholder="Code" required value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+            <input placeholder="Names (comma-separated)" required style={{ minWidth: 220 }} value={form.names} onChange={(e) => setForm({ ...form, names: e.target.value })} />
+            <input placeholder="Unit" style={{ width: 90 }} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
+            <button className="p-btn primary" type="submit">Add</button>
           </form>
         </>
       )}
@@ -54,16 +54,16 @@ export function PricingView({ user, notify }: { user: User; notify: (m: string, 
   return (
     <>
       <div className="p-card">
-        <h3>Fiyatlar</h3>
-        <Hint>Yeni fiyat taslak olarak eklenir; “Yürürlüğe al” derseniz teklifler yeni fiyatı kullanır. Eski teklifler kilitli fiyatlarını korur.</Hint>
+        <h3>Prices</h3>
+        <Hint>A new price is added as a draft; when you activate it, quotes use the new price. Older quotes keep their locked prices.</Hint>
         {products.map((p) => (
           <div key={p.id}>
             <h4>{p.code} — {p.names.join(", ")}</h4>
-            {(prices[p.id] ?? []).length === 0 ? <p className="p-muted">Fiyat yok.</p> : (
-              <table><thead><tr><th>Fiyat</th><th>Durum</th><th /></tr></thead><tbody>
+            {(prices[p.id] ?? []).length === 0 ? <p className="p-muted">No price.</p> : (
+              <table><thead><tr><th>Price</th><th>Status</th><th /></tr></thead><tbody>
                 {(prices[p.id] ?? []).map((v) => (
                   <tr key={v.id}><td>{money(v.price, v.currency)}</td><td><Pill t={v.status} /></td>
-                    <td>{admin && v.status === "taslak" && <button className="p-btn sm" onClick={async () => { try { await api.activatePrice(v.id); await loadAll(); } catch (e) { notify((e as Error).message); } }}>Yürürlüğe al</button>}</td></tr>
+                    <td>{admin && v.status === "draft" && <button className="p-btn sm" onClick={async () => { try { await api.activatePrice(v.id); await loadAll(); } catch (e) { notify((e as Error).message); } }}>Activate</button>}</td></tr>
                 ))}
               </tbody></table>
             )}
@@ -72,37 +72,37 @@ export function PricingView({ user, notify }: { user: User; notify: (m: string, 
                 e.preventDefault();
                 const form = e.currentTarget;
                 const price = Number(form.querySelector<HTMLInputElement>("[data-price]")?.value);
-                const cur = form.querySelector<HTMLInputElement>("[data-cur]")?.value.trim() || "TRY";
-                try { await api.createPrice(p.id, price, cur); setPrices((m) => ({ ...m, [p.id]: [] })); await loadAll(); notify("Fiyat taslağı eklendi.", "ok"); }
+                const cur = form.querySelector<HTMLInputElement>("[data-cur]")?.value.trim() || "USD";
+                try { await api.createPrice(p.id, price, cur); setPrices((m) => ({ ...m, [p.id]: [] })); await loadAll(); notify("Price draft added.", "ok"); }
                 catch (err) { notify((err as Error).message); }
               }}>
-                <input data-price placeholder="Fiyat" type="number" min="0" step="any" required style={{ width: 130 }} aria-label={`Fiyat — ${p.code}`} />
-                <input data-cur placeholder="Para birimi" defaultValue="TRY" style={{ width: 90 }} aria-label={`Para birimi — ${p.code}`} />
-                <button className="p-btn sm" type="submit">Taslak ekle</button>
+                <input data-price placeholder="Price" type="number" min="0" step="any" required style={{ width: 130 }} aria-label={`Price — ${p.code}`} />
+                <input data-cur placeholder="Currency" defaultValue="USD" style={{ width: 90 }} aria-label={`Currency — ${p.code}`} />
+                <button className="p-btn sm" type="submit">Add draft</button>
               </form>
             )}
           </div>
         ))}
       </div>
       <div className="p-card">
-        <h3>Şartlar</h3>
-        <table><thead><tr><th>Ad</th><th>Metin</th><th>Durum</th><th /></tr></thead><tbody>
+        <h3>Terms</h3>
+        <table><thead><tr><th>Name</th><th>Text</th><th>Status</th><th /></tr></thead><tbody>
           {terms.map((t) => (
             <tr key={t.id}><td><b>{t.name}</b></td><td>{t.text}</td><td><Pill t={t.status} /></td>
-              <td>{admin && t.status === "taslak" && <button className="p-btn sm" onClick={async () => { try { await api.activateTerms(t.id); await loadAll(); } catch (e) { notify((e as Error).message); } }}>Yürürlüğe al</button>}</td></tr>
+              <td>{admin && t.status === "draft" && <button className="p-btn sm" onClick={async () => { try { await api.activateTerms(t.id); await loadAll(); } catch (e) { notify((e as Error).message); } }}>Activate</button>}</td></tr>
           ))}
         </tbody></table>
         {admin && (
           <>
-            <h4>Yeni Şart</h4>
+            <h4>New Terms</h4>
             <form className="p-inline" onSubmit={async (e) => {
               e.preventDefault();
-              try { await api.createTerms(nt.name.trim(), nt.text.trim()); setNt({ name: "", text: "" }); await loadAll(); notify("Şart eklendi.", "ok"); }
+              try { await api.createTerms(nt.name.trim(), nt.text.trim()); setNt({ name: "", text: "" }); await loadAll(); notify("Terms added.", "ok"); }
               catch (err) { notify((err as Error).message); }
             }}>
-              <input placeholder="Ad" required value={nt.name} onChange={(e) => setNt({ ...nt, name: e.target.value })} />
-              <input placeholder="Metin" required style={{ minWidth: 280 }} value={nt.text} onChange={(e) => setNt({ ...nt, text: e.target.value })} />
-              <button className="p-btn primary" type="submit">Ekle</button>
+              <input placeholder="Name" required value={nt.name} onChange={(e) => setNt({ ...nt, name: e.target.value })} />
+              <input placeholder="Text" required style={{ minWidth: 280 }} value={nt.text} onChange={(e) => setNt({ ...nt, text: e.target.value })} />
+              <button className="p-btn primary" type="submit">Add</button>
             </form>
           </>
         )}

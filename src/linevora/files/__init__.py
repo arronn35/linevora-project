@@ -1,4 +1,4 @@
-"""Değişmez dosya deposu."""
+"""Immutable file store."""
 
 from .store import BlobStore, LocalBlobStore, StoredFile
 

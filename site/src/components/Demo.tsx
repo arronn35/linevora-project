@@ -34,7 +34,7 @@ export function Demo() {
           acknowledgeRemotionLicense
         />
       </div>
-      <div className="demo-steps" role="tablist" aria-label="Akış adımları">
+      <div className="demo-steps" role="tablist" aria-label="Flow steps">
         {SCENES.map((s, i) => (
           <button
             key={s.label}

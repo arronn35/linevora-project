@@ -1,4 +1,4 @@
-"""Dil modeli istemci soyutlaması ve çıktı doğrulama."""
+"""Language-model client abstraction and output validation."""
 
 from .client import (
     CallRecord,

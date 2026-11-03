@@ -1,4 +1,4 @@
-"""Test donanımları: her teste yalıtılmış uygulama, depolar ve dosya alanı."""
+"""Test fixtures: an isolated app, stores and file area for every test."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -38,7 +38,7 @@ def admin_token(client):
 @pytest.fixture
 def viewer_token(client):
     response = client.post(
-        "/v1/auth/token", json={"username": "izleyici", "password": "izleyici123"}
+        "/v1/auth/token", json={"username": "viewer", "password": "viewer123"}
     )
     assert response.status_code == 200
     return response.json()["access_token"]
@@ -48,7 +48,7 @@ def viewer_token(client):
 def inquiry_id(client, admin_token):
     response = client.post(
         "/v1/inquiries",
-        json={"customer": "Acme", "title": "Pompa teklifi"},
+        json={"customer": "Acme", "title": "Pump quote"},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert response.status_code == 201

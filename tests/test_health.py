@@ -1,4 +1,4 @@
-"""Sağlık uç noktası."""
+"""Health endpoint."""
 
 from linevora import __version__
 

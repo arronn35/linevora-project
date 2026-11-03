@@ -1,4 +1,4 @@
-"""HTTP ara katmanı: istek kimliği, süre ölçümü, kayıt, güvenlik başlıkları."""
+"""HTTP middleware: request id, duration measurement, logging, security headers."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ logger = logging.getLogger("linevora.http")
 
 
 class RateLimiter:
-    """IP başına kayan pencere hız sınırı (özellikle token uç noktası)."""
+    """Per-IP sliding-window rate limit (especially the token endpoint)."""
 
     def __init__(self, per_minute: int = 60, window_seconds: float = 60.0) -> None:
         self._limit = max(1, per_minute)
@@ -38,7 +38,7 @@ def setup_observability(app) -> None:
                 from fastapi.responses import JSONResponse
 
                 return JSONResponse(
-                    status_code=429, content={"detail": "çok fazla istek"}
+                    status_code=429, content={"detail": "too many requests"}
                 )
         return await call_next(request)
 

@@ -1,24 +1,24 @@
-# Yığın Kararı (Adım 2+ öncesi)
+# Stack Decision
 
-Tarih: 2026-10-30. Karar verici: kullanıcı (üç soruya yanıt).
+Date: 2026-10-30. Decision maker: the user (answers to three questions).
 
-## Kararlar
+## Decisions
 
-1. **Uygulama yığını:** Python API + ayrı web arayüzü.
-   - Gerekçe: belge işleme ve model entegrasyonu ekosistemi; arayüz bağımsız ilerler.
-2. **Barındırma:** yönetilen bulut.
-   - Gerekçe: işletme yükünü en düşükte tutma; yedekleme ve ölçekleme sağlayıcıda.
-3. **Dil modeli:** yönetilen model servisi.
-   - Sonuç: veri model sağlayıcıya gider; gizlilik metni ve saklama politikasında belirtilmeli.
+1. **Application stack:** a Python API plus a separate web interface.
+   - Rationale: the document-processing and model-integration ecosystem; the interface progresses independently.
+2. **Hosting:** managed cloud.
+   - Rationale: keeping the operating cost at its lowest; backup and scaling stay with the provider.
+3. **Language model:** a managed model service.
+   - Consequence: data goes to the model provider; this must be stated in the privacy notice and the retention policy.
 
-## Ertelenen Seçimler (ilgili adımda)
+## Deferred Choices (at the relevant step)
 
-- İlişkisel veritabanı ürünü (Adım 3/5).
-- Anlamsal dizin ürünü (Adım 5).
-- Kuyruk ürünü (Adım 5).
-- Bulut sağlayıcı ve somut servisler (Adım 8 öncesi).
+- Relational database product.
+- Semantic index product.
+- Queue product.
+- Cloud provider and concrete services.
 
-## Etkiler
+## Effects
 
-- Adım 2 iskeleti Python ile kurulur; kalıcılık soyutlaması korunur (somut DB seçilene dek bellek içi depolar).
-- Model soyutlaması (Adım 4) yönetilen servis varsayımıyla tasarlanır; arayüz sağlayıcı değişimine kapalı kalır.
+- The implementation skeleton is built in Python; the persistence abstraction is preserved (in-memory stores until a concrete database is selected).
+- The model abstraction is designed on the managed-service assumption; the interface stays closed to provider changes.

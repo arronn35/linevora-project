@@ -1,42 +1,42 @@
-# Veri Modeli ve Değişmez Kurallar (Adım 1)
+# Data Model and Non-Negotiable Rules
 
-## Varlıklar
+## Entities
 
-- **Kullanıcı:** kimlik, ad, rol (roller: yönetici, teklif uzmanı, salt okunur). Rol değişimleri denetim kaydına yazılır.
-- **Ürün:** kod, adlar, eşanlamlılar, özellikler (ad/değer listesi), birim. Katalogun ana kaydıdır.
-- **FiyatSürümü:** ürün → fiyat, para birimi, yürürlük aralığı, durum (taslak / yürürlükte / arşiv). Aynı ürünün tek yürürlükteki sürümü olabilir.
-- **ŞartSürümü:** şart kümesi (teslim, ödeme, geçerlilik vb.), yürürlük aralığı, durum (taslak / yürürlükte / arşiv). Tek yürürlükteki sürüm kuralı geçerlidir.
-- **Talep:** müşteri, başlık, durum (açık / teklifte / kapalı).
-- **TalepSürümü:** talep → sürüm no, kaynak dosya işareti, çıkarılmış metin, sayfa/bölüm yapısı. Önceki sürüme bağlantı taşır.
-- **Gereksinim:** sürüm → ürün tipi, özellikler, miktar, birim, toleranslar, **kaynak işaretçisi (zorunlu: dosya + sayfa/bölüm + alıntı)**.
-- **EşleşmeÖnerisi:** gereksinim → ürün, skor, gerekçe, kaynak işaretçileri (zorunlu), durum (bekliyor / onaylandı / reddedildi / düzeltildi), inceleyen, zaman.
-- **EksikBilgi:** gereksinim/sürüm → alan, soru metni, zorunluluk, durum (açık / yanıtlandı / vazgeçildi).
-- **SürümFarkı:** eski sürüm → yeni sürüm, değişiklik kalemleri (alan, eski değer, yeni değer).
-- **AlternatifÖneri:** gereksinim → ürün, kriter karşılaştırması, gerekçe, durum (bekliyor / onaylandı / reddedildi).
-- **Teklif:** talep → durum (taslak / incelemede / onaylandı / dışa aktarıldı), hazırlayan, onaylayan, zamanlar.
-- **TeklifKalemi:** teklif → ürün, miktar, **üretildiği andaki FiyatSürümü kimliği (sabitlenir)**, tutar. Teklif ayrıca **ŞartSürümü kimliğini** taşır.
-- **SaklananDosya:** özgün ad, içerik adresi, bütünlük karması. Yazıldıktan sonra değiştirilemez.
-- **DenetimKaydı:** zaman, aktör, işlem, nesne, önce/sonra özeti. Yalnızca eklenir; güncellenemez, silinemez.
+- **User:** identity, name, role (roles: admin, quote specialist, read-only). Role changes are written to the audit log.
+- **Product:** code, names, synonyms, features (a name/value list), unit. The catalog's main record.
+- **PriceVersion:** product → price, currency, validity range, status (draft / active / archived). A product can have only one active version.
+- **TermsVersion:** a set of terms (delivery, payment, validity, etc.), validity range, status (draft / active / archived). The single-active-version rule applies.
+- **Inquiry:** customer, title, status (open / in quote / closed).
+- **InquiryVersion:** inquiry → version number, source-file pointer, extracted text, page/section structure. Carries a link to the previous version.
+- **Requirement:** version → product type, features, quantity, unit, tolerances, **source pointer (required: file + page/section + quote)**.
+- **MatchSuggestion:** requirement → product, score, rationale, source pointers (required), status (pending / approved / rejected / corrected), reviewer, time.
+- **InformationGap:** requirement/version → field, question text, mandatory flag, status (open / answered / waived).
+- **VersionDiff:** old version → new version, change lines (field, old value, new value).
+- **AlternativeSuggestion:** requirement → product, criterion comparison, rationale, status (pending / approved / rejected).
+- **Quote:** inquiry → status (draft / in_review / approved / exported), prepared by, approved by, timestamps.
+- **QuoteLine:** quote → product, quantity, **the PriceVersion id in effect when it was produced (pinned)**, amount. The quote also carries the **TermsVersion id**.
+- **StoredFile:** original name, content address, integrity hash. Cannot be changed after being written.
+- **AuditRecord:** time, actor, action, object, before/after summary. Append-only; cannot be updated or deleted.
 
-## Durum Makineleri
+## State Machines
 
-- Teklif: taslak → incelemede → onaylandı → dışa aktarıldı. Geri dönüşler (incelemede → taslak) denetim kaydıyla olur; onaylandı → taslak geçişi yoktur, yeni taslak sürüm açılır.
-- EşleşmeÖnerisi ve AlternatifÖneri: bekliyor → onaylandı / reddedildi; onaylanan öneride sonradan değişiklik yerine "düzeltildi" izi bırakan yeni karar gerekir.
+- Quote: draft → in_review → approved → exported. Returns (in_review → draft) happen through the audit log; there is no approved → draft transition — a new draft version is opened instead.
+- MatchSuggestion and AlternativeSuggestion: pending → approved / rejected; on an approved suggestion, a later change requires a new decision that leaves a "corrected" trace instead of an edit.
 
-## Değişmezlerin Denetim Noktaları
+## Enforcement Points for the Invariants
 
-1. **Kaynaksız öneri gösterilmez.** Gereksinim ve EşleşmeÖnerisi kayıtlarında kaynak işaretçisi boş bırakılamaz (yazma anında zorunlu); okuma katmanı işaretsiz kaydı listelemez. Doğrulama: işaretsiz kayıt yazma denemesi reddedilir.
-2. **Onaysız dışa aktarma yok.** Belge çıktısı yalnızca durumu "onaylandı" olan tekliften üretilir; dışa aktarma işlemi onaylayan kimliği ve zamanı denetim kaydına yazar, durumu "dışa aktarıldı" yapar. Doğrulama: onaysız tekliften çıktı denemesi engellenir.
-3. **Yalnızca onaylı fiyat/şart.** Teklif kalemi yazılırken ürünün yürürlükteki FiyatSürümü çözülür ve kimliği kaleme sabitlenir; şartlar için yürürlükteki ŞartSürümü teklife sabitlenir. Yürürlükte sürümü olmayan ürün teklif kalemine giremez. Doğrulama: eski teklif, fiyat değişiminden sonra ilk üretildiği sürüm değerlerini göstermeye devam eder.
+1. **No suggestion without a source is shown.** The source pointer cannot be left empty on Requirement and MatchSuggestion records (required at write time); the read layer does not list a record without a pointer. Validation: an attempt to write a record without a pointer is rejected.
+2. **No export without approval.** Document output is produced only from a quote whose status is "approved"; the export writes the approver identity and time to the audit log and sets the status to "exported". Validation: an output attempt from an unapproved quote is blocked.
+3. **Only approved prices/terms.** When a quote line is written, the product's active PriceVersion is resolved and its id is pinned to the line; the active TermsVersion is pinned to the quote. A product without an active version cannot enter a quote line. Validation: after a price change, an older quote keeps showing the values of the version it was first produced with.
 
-## Bütünlük Notları
+## Integrity Notes
 
-- Sürüm ve denetim kayıtları yalnızca eklenir; düzeltme yeni kayıtla yapılır.
-- Dosya deposundaki içerik ile veritabanındaki işaretçilerin eşleşmesi düzenli doğrulama işiyle denetlenir.
-- Skor eşikleri ve zorunlu alan listeleri yapılandırmada durur, kodda sabitlenmez.
+- Version and audit records are append-only; a correction is made with a new record.
+- The match between content in the file store and pointers in the database is checked by a regular verification job.
+- Score thresholds and mandatory-field lists live in configuration, not hard-coded.
 
-## Adım 1 Kabul Kontrolü
+## Acceptance Checklist
 
-- [ ] Kaynak işaretçisiz gereksinim/öneri yazma denemesi reddedilir.
-- [ ] Onaysız tekliften belge çıktısı denemesi engellenir.
-- [ ] Fiyat/şart değişiminden sonra eski teklif eski sürüm değerlerini korur.
+- [ ] An attempt to write a requirement/suggestion without a source pointer is rejected.
+- [ ] A document-output attempt from an unapproved quote is blocked.
+- [ ] After a price/terms change, an older quote preserves the values of its original version.

@@ -1,4 +1,4 @@
-"""Asenkron iş hattı: kuyruk + çalışan + yeniden deneme."""
+"""Async job pipeline: queue + worker + retries."""
 
 from .models import Job
 from .runner import JobRunner

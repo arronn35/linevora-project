@@ -1,7 +1,7 @@
-"""Model istemci arayüzü: tüm model çağrıları buradan geçer.
+"""Model client interface: every model call goes through here.
 
-Sağlayıcı değişimi bu arayüzü etkilemez. Yönetilen servis bağdaştırıcısı
-Adım 5 ile eklenir; o zamana dek sahte istemci + ölçüm sarayıcı kullanılır.
+Changing the provider does not affect this interface. Until a managed
+service adapter is added, a fake client plus a metering wrapper is used.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Any, Callable, Protocol
 
 
 class ModelError(Exception):
-    """Model çağrısı başarısız."""
+    """The model call failed."""
 
 
 class ModelClient(Protocol):
@@ -24,12 +24,12 @@ class ModelClient(Protocol):
         ...
 
     def complete(self, system: str, user: str) -> str:
-        """Ham metin yanıt döndürür; ayrıştırma/doğrulama schemas.py işidir."""
+        """Returns a raw text response; parsing/validation is the job of schemas.py."""
         ...
 
 
 class FakeModelClient:
-    """Betiklenmiş yanıtlar veren istemci: test ve geliştirme için."""
+    """A client that returns scripted responses: for tests and development."""
 
     def __init__(self, responses: dict[str, str] | None = None) -> None:
         self._responses = dict(responses or {})
@@ -43,19 +43,19 @@ class FakeModelClient:
         try:
             return self._responses[user]
         except KeyError:
-            raise ModelError("betiklenmemiş girdi")
+            raise ModelError("unscripted input")
 
 
 class HttpModelClient:
-    """Yönetilen model servisi bağdaştırıcısı (OpenAI-uyumlu chat API).
+    """Managed model-service adapter (OpenAI-compatible chat API).
 
-    Yapılandırma ortam değişkenleriyle: ``LINEVORA_MODEL_URL`` (örn.
-    ``https://.../v1/chat/completions``), ``LINEVORA_MODEL_API_KEY``,
-    ``LINEVORA_MODEL_NAME``. Sağlayıcıya özgü kod barındırmaz; uç nokta
-    ``{model, messages}`` kabul edip ``choices[0].message.content``
-    döndüren herhangi bir servisle çalışır. Ağ hatasında sınırlı yeniden
-    deneme yapar, sonra ``ModelError`` fırlatır (şema dışı yanıt hatta
-    girmez; doğrulama ``schemas.py`` katmanındadır).
+    Configuration is via environment variables: ``LINEVORA_MODEL_URL``
+    (e.g. ``https://.../v1/chat/completions``), ``LINEVORA_MODEL_API_KEY``,
+    ``LINEVORA_MODEL_NAME``. It contains no provider-specific code; it works
+    with any service whose endpoint accepts ``{model, messages}`` and returns
+    ``choices[0].message.content``. On a network error it retries a limited
+    number of times, then raises ``ModelError`` (an off-schema response never
+    enters the pipeline; validation lives in the ``schemas.py`` layer).
     """
 
     def __init__(
@@ -69,7 +69,7 @@ class HttpModelClient:
         backoff_seconds: float = 0.5,
     ) -> None:
         if not url:
-            raise ValueError("model URL gerekli")
+            raise ValueError("a model URL is required")
         self._url = url
         self._api_key = api_key
         self._model = model
@@ -112,13 +112,13 @@ class HttpModelClient:
                     body = json.loads(response.read().decode("utf-8"))
                 content = body["choices"][0]["message"]["content"]
                 if not isinstance(content, str) or not content.strip():
-                    raise ModelError("boş model yanıtı")
+                    raise ModelError("empty model response")
                 return content
             except ModelError:
                 raise
-            except Exception as exc:  # ağ / HTTP / JSON hataları
+            except Exception as exc:  # network / HTTP / JSON errors
                 last_error = exc
-        raise ModelError(f"model çağrısı başarısız: {last_error}")
+        raise ModelError(f"model call failed: {last_error}")
 
 
 @dataclass(frozen=True)
@@ -131,13 +131,13 @@ class CallRecord:
 
     @property
     def estimated_tokens(self) -> int:
-        # Sağlayıcı usage alanı yokken kaba tahmin: ~4 karakter/token.
+        # Rough estimate when the provider has no usage field: ~4 chars/token.
         return (self.prompt_chars + self.response_chars + 3) // 4
 
 
 @dataclass
 class MeteringClient:
-    """Çağrı adedi/hacim kaydı tutan sarayıcı (maliyet takibinin temeli)."""
+    """A wrapper that records call counts/volume (the basis of cost tracking)."""
 
     inner: ModelClient
     calls: list[CallRecord] = field(default_factory=list)

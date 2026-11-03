@@ -1,7 +1,7 @@
-"""Teklif kayıtları: sürümlü fiyat/şart, teklif ve kalemler.
+"""Quote records: versioned prices/terms, quotes and lines.
 
-Durumlar — fiyat/şart: taslak / yürürlükte / arşiv;
-teklif: taslak / incelemede / onaylandı / dışa aktarıldı.
+Statuses — price/terms: draft / active / archived;
+quote: draft / in_review / approved / exported.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ class PriceVersion:
     product_id: str
     price: float
     currency: str
-    status: str = "taslak"
+    status: str = "draft"
     created_at: float = field(default_factory=time.time)
 
 
@@ -25,7 +25,7 @@ class TermsVersion:
     id: str
     name: str
     text: str
-    status: str = "taslak"
+    status: str = "draft"
     created_at: float = field(default_factory=time.time)
 
 
@@ -36,7 +36,7 @@ class Quote:
     version_id: str
     terms_version_id: str
     created_by: str
-    status: str = "taslak"
+    status: str = "draft"
     approved_by: str | None = None
     created_at: float = field(default_factory=time.time)
     approved_at: float | None = None

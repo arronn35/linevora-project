@@ -1,10 +1,11 @@
-"""Vektör tabanlı anlamsal eşleştirici.
+"""Vector-based semantic matcher.
 
-Dış servise bağımlı değildir: metinler karakter n-gram + kelime
-hashing vektörlerine çevrilir, kosinüs benzerliğiyle skorlanır. Farklı
-terminolojiyle yazılmış taleplerde sözlüksel eşleşmenin kaçırdığı
-adayları üretir. Nihai karar verici değildir; ``HybridMatcher`` içinde
-sözlüksel skorla harmanlanır ve eval setinde A/B karşılaştırılır.
+It does not depend on an external service: texts are turned into
+character n-gram + word hashing vectors and scored by cosine similarity.
+For inquiries written with different terminology it produces candidates
+that lexical matching misses. It is not the final decision-maker; inside
+``HybridMatcher`` it is blended with the lexical score and A/B-compared
+on the eval set.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ def _vector(text: str) -> dict[int, float]:
     vec: dict[int, float] = {}
     tokens = _tokens(text)
     features: list[str] = list(tokens)
-    for token in tokens:  # karakter 3-gramları: yazım/terminoloji toleransı
+    for token in tokens:  # character 3-grams: spelling/terminology tolerance
         padded = f"#{token}#"
         features.extend(padded[i : i + 3] for i in range(len(padded) - 2))
     for feature in features:
@@ -78,7 +79,7 @@ class VectorMatcher:
                     ScoredProduct(
                         product=product,
                         score=round(score, 4),
-                        reasons=(f"anlamsal benzerlik: {score:.2f}",),
+                        reasons=(f"semantic similarity: {score:.2f}",),
                     )
                 )
         scored.sort(key=lambda item: item.score, reverse=True)
@@ -86,7 +87,7 @@ class VectorMatcher:
 
 
 class EmbeddingMatcher:
-    """Embedder arkasında kosinüs eşleştirme (yerel hashing veya HTTP)."""
+    """Cosine matching behind an embedder (local hashing or HTTP)."""
 
     def __init__(self, embedder=None, top_k: int = 3, min_score: float = 0.15) -> None:
         from .embedder import HashingEmbedder, cosine_any
@@ -106,7 +107,7 @@ class EmbeddingMatcher:
                     ScoredProduct(
                         product=product,
                         score=round(score, 4),
-                        reasons=(f"gömme benzerliği: {score:.2f}",),
+                        reasons=(f"embedding similarity: {score:.2f}",),
                     )
                 )
         scored.sort(key=lambda item: item.score, reverse=True)
@@ -114,7 +115,7 @@ class EmbeddingMatcher:
 
 
 class HybridMatcher:
-    """Sözlüksel (0.6) + vektör (0.4) harmanı; eval A/B için tek arayüz."""
+    """Lexical (0.6) + vector (0.4) blend; a single interface for eval A/B."""
 
     def __init__(self, top_k: int = 3, min_score: float = 0.3) -> None:
         self._top_k = top_k

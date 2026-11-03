@@ -1,9 +1,9 @@
-"""Arayüz sunumu: React uygulaması (vitrin + /panel) tek porttan sunulur.
+"""UI serving: the React app (showcase + /panel) is served from a single port.
 
-Öncelik: `site/dist` (Vite build çıktısı) varsa o sunulur — `/` vitrin,
-`/panel` ve altı panel SPA'sıdır, `/assets/*` build varlıklarıdır.
-Build yoksa geriye dönük uyum için paketteki yalın panel (`linevora/web`)
-sunulur; böylece testsiz/kurumsuz ortamda da panel açılır.
+Priority: if `site/dist` (the Vite build output) exists it is served — `/` is the
+showcase, `/panel` and below are the panel SPA, `/assets/*` are build assets.
+Without a build, the plain panel bundled in the package (`linevora/web`) is
+served for backward compatibility, so the panel opens even without a build.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, Response
 router = APIRouter()
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-# src/linevora/api/router_ui.py -> proje kökü: parents[3]
+# src/linevora/api/router_ui.py -> project root: parents[3]
 SITE_DIST = Path(__file__).resolve().parents[3] / "site" / "dist"
 
 
@@ -57,9 +57,9 @@ def assets(file_path: str) -> Response:
     target = (SITE_DIST / "assets" / file_path).resolve()
     assets_root = (SITE_DIST / "assets").resolve()
     if assets_root not in target.parents and target != assets_root:
-        raise HTTPException(status_code=404, detail="yok")
+        raise HTTPException(status_code=404, detail="not found")
     if not target.is_file():
-        raise HTTPException(status_code=404, detail="yok")
+        raise HTTPException(status_code=404, detail="not found")
     return FileResponse(target)
 
 

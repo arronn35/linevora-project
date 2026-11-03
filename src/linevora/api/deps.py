@@ -1,4 +1,4 @@
-"""Kimlik ve rol bağımlılıkları: tek giriş kapısının bekçileri."""
+"""Identity and role dependencies: guards of the single entry point."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ def get_current_user(
 ) -> dict:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer [REDACTED]ç yok"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="missing Bearer token"
         )
     try:
         user = verify_token(get_settings().secret_key, credentials.credentials)
@@ -27,7 +27,7 @@ def get_current_user(
     revoked = getattr(request.app.state, "revoked_tokens", None)
     if revoked is not None and revoked.is_revoked(user.get("jti")):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="iptal edilmiş belirteç"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="revoked token"
         )
     return user
 
@@ -38,7 +38,7 @@ def require_roles(*roles: Role):
     def checker(user: dict = Depends(get_current_user)) -> dict:
         if wanted.isdisjoint(user.get("roles", [])):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="rol yetkisi yetersiz"
+                status_code=status.HTTP_403_FORBIDDEN, detail="insufficient role"
             )
         return user
 

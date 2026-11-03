@@ -1,4 +1,4 @@
-"""Anlık görüntü: kaydetme, yükleme, kuşak rotasyonu, geri yükleme."""
+"""Snapshots: saving, loading, generation rotation, restore."""
 
 import json
 import os
@@ -14,7 +14,7 @@ from linevora.model import FakeModelClient
 from linevora.observability import SnapshotManager
 from linevora.reports.store import InMemoryGapStore
 
-CONTENT = "DN50 santrifüj pompa, 10 adet"
+CONTENT = "DN50 centrifugal pump, 10 pcs"
 
 
 def _login(client):
@@ -28,16 +28,16 @@ def _scripted_client():
     expected = {
         "requirements": [
             {
-                "product_type": "santrifüj pompa",
+                "product_type": "centrifugal pump",
                 "features": {"DN": "50"},
                 "quantity": 10,
-                "unit": "adet",
+                "unit": "pcs",
                 "source": {"page": 1, "quote": CONTENT},
             }
         ]
     }
     return FakeModelClient(
-        responses={f"Sayfa 1:\n{CONTENT}": json.dumps(expected, ensure_ascii=False)}
+        responses={f"Page 1:\n{CONTENT}": json.dumps(expected, ensure_ascii=False)}
     )
 
 
@@ -45,7 +45,7 @@ def _full_flow(client, token):
     headers = {"Authorization": f"Bearer {token}"}
     inquiry = client.post(
         "/v1/inquiries",
-        json={"customer": "Acme", "title": "Pompa"},
+        json={"customer": "Acme", "title": "Pump"},
         headers=headers,
     ).json()["id"]
     client.post(
@@ -95,7 +95,7 @@ def test_snapshot_roundtrip_preserves_state(tmp_path):
     assert model_calls == {"calls": 1, "ok": 1, "failed": 0}
     saved = first.post("/v1/admin/snapshot", headers=headers)
     assert saved.json() == {"saved": True, "path": snap}
-    # Yeni süreç, boş dosya dizini: durum yalnızca anlık görüntüden gelir.
+    # New process, empty file directory: the state comes only from the snapshot.
     app2 = create_app(
         audit_store=InMemoryAuditStore(),
         inquiry_store=InMemoryInquiryStore(),
@@ -110,7 +110,7 @@ def test_snapshot_roundtrip_preserves_state(tmp_path):
     assert len(suggestions["requirements"]) == 1
     assert len(suggestions["suggestions"]) == 2
     quote = second.get(f"/v1/quotes/{quote_id}", headers=headers).json()
-    assert quote["status"] == "dışa aktarıldı"
+    assert quote["status"] == "exported"
     assert quote["totals"] == export1["totals"]
     metrics = second.get("/v1/metrics", headers=headers).json()
     assert metrics["jobs"]["by_status"] == {"done": 1}

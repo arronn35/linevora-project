@@ -1,0 +1,35 @@
+{
+  "id": "002-valve",
+  "input_text": "4 pcs DN80 gate valves and 2 pcs DN80 check valves for the line. Pressure class PN16.",
+  "expected": {
+    "requirements": [
+      {
+        "product_type": "gate valve",
+        "features": {
+          "DN": "80",
+          "pressure_class": "PN16"
+        },
+        "quantity": 4,
+        "unit": "pcs",
+        "source": {
+          "page": 1,
+          "quote": "4 pcs DN80 gate valves"
+        }
+      },
+      {
+        "product_type": "check valve",
+        "features": {
+          "DN": "80",
+          "pressure_class": "PN16"
+        },
+        "quantity": 2,
+        "unit": "pcs",
+        "source": {
+          "page": 1,
+          "quote": "2 pcs DN80 check valves"
+        }
+      }
+    ]
+  },
+  "notes": "Two-requirement case; matching is greedy."
+}

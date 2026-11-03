@@ -1,9 +1,10 @@
-"""Anlık görüntü: tüm bellek depolarının JSON yedeği.
+"""Snapshot: a JSON backup of all in-memory stores.
 
-Kalıcı veritabanı bağlanana dek (yönetilen veritabanı kararı) dayanıklılık
-bu yolla sağlanır: `POST /v1/admin/snapshot` tutarlı bir dosya yazar,
-uygulama açılışta varsa yükler. Yazma atomiktir (geçici dosya + taşıma)
-ve son N kuşak saklanır. Dosya deposu (`blob_dir`) ayrıca yedeklenir.
+Until a persistent database is connected, durability is provided this
+way: `POST /v1/admin/snapshot` writes a consistent file and the app loads
+it at startup when present. Writes are atomic (temp file + rename) and
+the last N generations are kept. The file store (`blob_dir`) is backed
+up separately.
 """
 
 from __future__ import annotations

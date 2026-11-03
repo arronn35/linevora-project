@@ -1,9 +1,9 @@
-"""Onaylı teklif için PDF belge çıktısı.
+"""PDF document output for an approved quote.
 
-``reportlab`` varsa onu kullanır; yoksa geçerli, metin içeren minimal
-bir PDF üretir (stdlib). Her iki yolda da çıktı ``%PDF`` ile başlar.
-Dışa aktarma kuralı (onaysız teklif yok) çağıran uç noktada denetlenir;
-bu modül yalnızca belgeyi çizer.
+Uses ``reportlab`` when available; otherwise produces a valid, minimal
+PDF containing the text (stdlib). Either way the output starts with ``%PDF``.
+The export rule (no quote without approval) is enforced at the calling
+endpoint; this module only renders the document.
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ from typing import Any
 
 def _lines_text(document: dict[str, Any]) -> list[str]:
     lines = [
-        "LINEVORA TEKLIF",
-        f"Musteri: {document.get('customer', '')}",
-        f"Baslik: {document.get('title', '')}",
-        f"Teklif: {document.get('quote_id', '')}  Durum: {document.get('status', '')}",
+        "LINEVORA QUOTE",
+        f"Customer: {document.get('customer', '')}",
+        f"Title: {document.get('title', '')}",
+        f"Quote: {document.get('quote_id', '')}  Status: {document.get('status', '')}",
         "",
-        "Kalemler:",
+        "Lines:",
     ]
     for line in document.get("lines", []):
         lines.append(
@@ -27,14 +27,14 @@ def _lines_text(document: dict[str, Any]) -> list[str]:
         )
     lines.append("")
     for total in document.get("totals", []):
-        lines.append(f"Toplam ({total.get('currency', '')}): {total.get('amount', '')}")
+        lines.append(f"Total ({total.get('currency', '')}): {total.get('amount', '')}")
     terms = document.get("terms") or {}
     if terms:
-        lines += ["", f"Sartlar: {terms.get('name', '')}", str(terms.get("text", ""))]
+        lines += ["", f"Terms: {terms.get('name', '')}", str(terms.get("text", ""))]
     lines += [
         "",
-        f"Hazirlayan: {document.get('prepared_by', '')}",
-        f"Onaylayan: {document.get('approved_by', '') or ''}",
+        f"Prepared by: {document.get('prepared_by', '')}",
+        f"Approved by: {document.get('approved_by', '') or ''}",
     ]
     return lines
 

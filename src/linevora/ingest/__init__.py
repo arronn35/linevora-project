@@ -1,4 +1,4 @@
-"""Metin çıkarma: sayfa yapısını korur."""
+"""Text extraction: preserves the page structure."""
 
 from .extract import ExtractedDocument, Page, UnsupportedFormatError, extract_text
 

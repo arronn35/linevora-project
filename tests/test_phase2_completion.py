@@ -1,4 +1,4 @@
-"""Faz 2 tamamlama: kopya güvenliği, satır bazlı kalıcılık, model-usage, vurgu."""
+"""Phase 2 completion: copy safety, row-based persistence, model-usage, highlighting."""
 
 import sqlite3
 
@@ -19,7 +19,7 @@ def test_get_returns_copy_not_live_reference():
 
 def test_catalog_features_copy_isolated():
     store = InMemoryCatalogStore()
-    product = store.add(code="X-1", names=("ürün",), features={"DN": "50"})
+    product = store.add(code="X-1", names=("product",), features={"DN": "50"})
     fetched = store.get(product.id)
     fetched.features["DN"] = "999"
     assert store.get(product.id).features["DN"] == "50"
